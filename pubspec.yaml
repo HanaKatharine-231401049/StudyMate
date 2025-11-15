@@ -11,6 +11,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0 # Untuk font Inter dan Montserrat
   provider: ^6.1.1
 
 dev_dependencies:
@@ -27,11 +29,11 @@ flutter:
   fonts:
     - family: MontserratAlternates
       fonts:
-        - asset: fonts/MontserratAlternates-SemiBold.ttf
+        - asset: assets/fonts/MontserratAlternates-SemiBold.ttf
     - family: Inter
       fonts:
-        - asset: fonts/Inter-SemiBold.ttf
+        - asset: assets/fonts/Inter-SemiBold.ttf
     - family: Roboto
       fonts:
-        - asset: fonts/Roboto-SemiBold.ttf
-        - asset: fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-SemiBold.ttf
+        - asset: assets/fonts/Roboto-Regular.ttf
