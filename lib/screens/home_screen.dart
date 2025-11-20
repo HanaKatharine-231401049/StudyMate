@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+// import 'package:studymate/screens/statistics_screen.dart';
 
 // Import Model
-import '../models/schedule.dart'; 
+import '../models/schedule.dart';
 import '../models/assignment.dart';
 import '../models/note.dart';
 
 // Import Utility
-import '../utils/colors.dart'; 
-import '../utils/dialog_components.dart'; 
+import '../utils/colors.dart';
+import '../utils/dialog_components.dart';
 
 // Import Pages
-import 'add_edit_schedule_screen.dart'; 
+import 'add_edit_schedule_screen.dart';
 import 'add_edit_assignment_screen.dart';
-import 'add_edit_note_screen.dart'; 
+import 'add_edit_note_screen.dart';
 import 'detail_schedule_screen.dart';
 import 'detail_assignment_screen.dart';
 import 'detail_note_screen.dart';
+import 'statistics_screen.dart';
+// import 'statistics_content.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -33,15 +36,18 @@ class _HomePageState extends State<HomePage> {
 
   // Variabel untuk filter tanggal
   String _selectedDate = '15 January 2025';
-  
+
   // State untuk menampilkan add options
   bool _showAddOptions = false;
 
   // --- Data Dummy ---
   List<Schedule> schedules = [
-    Schedule('Grafika Komputer', '15 January 2025', '10.30 - 11.20', 'ILK3103 - A, 2 SKS'),
-    Schedule('Pemrograman Mobile', '15 January 2025', '10.30 - 11.20', 'ILK3103 - A, 2 SKS'),
-    Schedule('Struktur Data', '16 January 2025', '08.00 - 09.30', 'ILK2205 - B, 3 SKS'),
+    Schedule('Grafika Komputer', '15 January 2025', '10.30 - 11.20',
+        'ILK3103 - A, 2 SKS'),
+    Schedule('Pemrograman Mobile', '15 January 2025', '10.30 - 11.20',
+        'ILK3103 - A, 2 SKS'),
+    Schedule('Struktur Data', '16 January 2025', '08.00 - 09.30',
+        'ILK2205 - B, 3 SKS'),
   ];
   List<Assignment> assignments = [
     Assignment('Grafika Komputer - Primitive Drawing', '12 Jan 2025', '11.00',
@@ -50,8 +56,8 @@ class _HomePageState extends State<HomePage> {
     Assignment('Pemrograman Mobile - UI/UX', '14 Jan 2025', '14.00',
         'Mauris quam orci, convallis nec enim eu, hendrerit imperdiet tortor.',
         isFinished: false),
-    Assignment('Jaringan Komputer', '10 Jan 2025', '18.00',
-        'Tugas sudah selesai',
+    Assignment(
+        'Jaringan Komputer', '10 Jan 2025', '18.00', 'Tugas sudah selesai',
         isFinished: true),
   ];
   List<Note> allNotes = [
@@ -60,9 +66,9 @@ class _HomePageState extends State<HomePage> {
     Note('Pemrograman Mobile - UI/UX', '16 Jan 2025',
         'Catatan penting tentang lifecycle stateful widget dan provider management.'),
   ];
-  
-  List<Note> filteredNotes = []; 
-  
+
+  List<Note> filteredNotes = [];
+
   @override
   void initState() {
     super.initState();
@@ -109,7 +115,8 @@ class _HomePageState extends State<HomePage> {
                     color: kBackgroundColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.calendar_today, size: 20, color: kInkTone),
+                  child: const Icon(Icons.calendar_today,
+                      size: 20, color: kInkTone),
                 ),
               ),
             ],
@@ -138,9 +145,12 @@ class _HomePageState extends State<HomePage> {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.only(bottom: 80),
-            itemCount: schedules.where((s) => s.date.contains(_selectedDate)).length,
+            itemCount:
+                schedules.where((s) => s.date.contains(_selectedDate)).length,
             itemBuilder: (context, index) {
-              final schedule = schedules.where((s) => s.date.contains(_selectedDate)).toList()[index];
+              final schedule = schedules
+                  .where((s) => s.date.contains(_selectedDate))
+                  .toList()[index];
               return _buildScheduleItem(schedule, index);
             },
           ),
@@ -163,15 +173,17 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(day, style: GoogleFonts.inter(
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-              fontSize: 12, 
-              color: isSelected ? kInkTone : Colors.grey[700])),
+            Text(day,
+                style: GoogleFonts.inter(
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    fontSize: 12,
+                    color: isSelected ? kInkTone : Colors.grey[700])),
             Text(date,
                 style: GoogleFonts.inter(
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    decoration:
-                        isSelected ? TextDecoration.underline : TextDecoration.none,
+                    decoration: isSelected
+                        ? TextDecoration.underline
+                        : TextDecoration.none,
                     decorationColor: kInkTone)),
           ],
         ),
@@ -185,7 +197,8 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Select Date', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          title: Text('Select Date',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
           content: SizedBox(
             width: double.maxFinite,
             child: CalendarDatePicker(
@@ -193,7 +206,8 @@ class _HomePageState extends State<HomePage> {
               firstDate: DateTime(2020),
               lastDate: DateTime(2030),
               onDateChanged: (DateTime date) {
-                String formattedDate = '${date.day} ${_getMonthName(date.month)} ${date.year}';
+                String formattedDate =
+                    '${date.day} ${_getMonthName(date.month)} ${date.year}';
                 setState(() {
                   _selectedDate = formattedDate;
                 });
@@ -204,7 +218,8 @@ class _HomePageState extends State<HomePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: GoogleFonts.inter(color: kAccentColor)),
+              child:
+                  Text('Cancel', style: GoogleFonts.inter(color: kAccentColor)),
             ),
           ],
         );
@@ -214,19 +229,32 @@ class _HomePageState extends State<HomePage> {
 
   String _getMonthName(int month) {
     switch (month) {
-      case 1: return 'January';
-      case 2: return 'February';
-      case 3: return 'March';
-      case 4: return 'April';
-      case 5: return 'May';
-      case 6: return 'June';
-      case 7: return 'July';
-      case 8: return 'August';
-      case 9: return 'September';
-      case 10: return 'October';
-      case 11: return 'November';
-      case 12: return 'December';
-      default: return '';
+      case 1:
+        return 'January';
+      case 2:
+        return 'February';
+      case 3:
+        return 'March';
+      case 4:
+        return 'April';
+      case 5:
+        return 'May';
+      case 6:
+        return 'June';
+      case 7:
+        return 'July';
+      case 8:
+        return 'August';
+      case 9:
+        return 'September';
+      case 10:
+        return 'October';
+      case 11:
+        return 'November';
+      case 12:
+        return 'December';
+      default:
+        return '';
     }
   }
 
@@ -244,7 +272,8 @@ class _HomePageState extends State<HomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => AddEditSchedulePage(isEditing: true, schedule: schedule),
+                    builder: (_) => AddEditSchedulePage(
+                        isEditing: true, schedule: schedule),
                   ),
                 ).then((_) {
                   // Refresh data setelah edit
@@ -290,7 +319,8 @@ class _HomePageState extends State<HomePage> {
                   Text(schedule.title,
                       style: GoogleFonts.inter(
                           fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(schedule.description, style: GoogleFonts.inter(fontSize: 14)),
+                  Text(schedule.description,
+                      style: GoogleFonts.inter(fontSize: 14)),
                 ],
               ),
             ),
@@ -309,13 +339,13 @@ class _HomePageState extends State<HomePage> {
         onConfirm: () {
           // Tutup dialog konfirmasi terlebih dahulu
           Navigator.pop(context);
-          
+
           // Gunakan post frame callback untuk menghindari error navigator
           WidgetsBinding.instance.addPostFrameCallback((_) {
             setState(() {
               schedules.removeAt(index);
             });
-            
+
             // Tampilkan success dialog setelah state diupdate
             showDialog(
               context: context,
@@ -353,7 +383,8 @@ class _HomePageState extends State<HomePage> {
                     hintText: 'Search Notes',
                     hintStyle: GoogleFonts.inter(),
                     prefixIcon: const Icon(Icons.search, color: kAccentColor),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
                     isDense: true,
                     filled: true,
                     fillColor: Colors.white,
@@ -403,7 +434,8 @@ class _HomePageState extends State<HomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => AddEditNotePage(isEditing: true, note: note),
+                    builder: (_) =>
+                        AddEditNotePage(isEditing: true, note: note),
                   ),
                 ).then((_) {
                   // Refresh data setelah edit
@@ -460,14 +492,14 @@ class _HomePageState extends State<HomePage> {
         onConfirm: () {
           // Tutup dialog konfirmasi terlebih dahulu
           Navigator.pop(context);
-          
+
           // Gunakan post frame callback untuk menghindari error navigator
           WidgetsBinding.instance.addPostFrameCallback((_) {
             setState(() {
               allNotes.remove(note);
-              _filterNotes(''); 
+              _filterNotes('');
             });
-            
+
             // Tampilkan success dialog setelah state diupdate
             showDialog(
               context: context,
@@ -560,7 +592,8 @@ class _HomePageState extends State<HomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => AddEditAssignmentPage(isEditing: true, assignment: assignment),
+                    builder: (_) => AddEditAssignmentPage(
+                        isEditing: true, assignment: assignment),
                   ),
                 ).then((_) {
                   // Refresh data setelah edit
@@ -662,13 +695,13 @@ class _HomePageState extends State<HomePage> {
         onConfirm: () {
           // Tutup dialog konfirmasi terlebih dahulu
           Navigator.pop(context);
-          
+
           // Gunakan post frame callback untuk menghindari error navigator
           WidgetsBinding.instance.addPostFrameCallback((_) {
             setState(() {
               assignments.removeAt(index);
             });
-            
+
             // Tampilkan success dialog setelah state diupdate
             showDialog(
               context: context,
@@ -688,92 +721,122 @@ class _HomePageState extends State<HomePage> {
   // --- Widget Utama ---
   @override
   Widget build(BuildContext context) {
-    Widget currentTab;
-    if (_selectedIndex == 0) {
-      currentTab = _buildScheduleTab();
-    } else if (_selectedIndex == 1) {
-      currentTab = _buildNoteTab(); 
-    } else {
-      currentTab = _buildAssignmentTab();
-    }
+    // final tabs = [
+    //   _buildScheduleTab(),
+    //   _buildNoteTab(),
+    //   _buildAssignmentTab(),
+    //   StatisticsContent(
+    //     assignments: assignments,
+    //     weeklyStudyHours: [10, 25, 15, 20],
+    //   ),
+    // ];
 
     int totalTasks = assignments.where((a) => !a.isFinished).length;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        automaticallyImplyLeading: false,
-        toolbarHeight: 120,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 8),
-            Text('Hello Mark',
-                style: GoogleFonts.imprima(
-                    fontSize: 18, fontWeight: FontWeight.normal)),
-            const SizedBox(height: 4),
-            Text('You\'ve got',
-                style: GoogleFonts.montserratAlternates(
-                    fontSize: 28, fontWeight: FontWeight.bold)),
-            Text('$totalTasks tasks today',
-                style: GoogleFonts.montserratAlternates(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: kAccentColor)),
-            const SizedBox(height: 8),
-          ],
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0, top: 20),
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(15),
+      appBar: _selectedIndex == 3
+          ? null
+          : AppBar(
+              backgroundColor: Colors.white,
+              automaticallyImplyLeading: false,
+              toolbarHeight: 120,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 8),
+                  Text('Hello Mark',
+                      style: GoogleFonts.montserrat(
+                          fontSize: 18, fontWeight: FontWeight.normal)),
+                  const SizedBox(height: 4),
+                  Text('You\'ve got',
+                      style: GoogleFonts.montserratAlternates(
+                          fontSize: 28, fontWeight: FontWeight.bold)),
+                  Text('$totalTasks tasks today',
+                      style: GoogleFonts.montserratAlternates(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: kAccentColor)),
+                  const SizedBox(height: 8),
+                ],
               ),
-              child: const Icon(Icons.person, color: kInkTone, size: 30),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0, top: 20),
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.grey,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: const Icon(Icons.person, color: kInkTone, size: 30),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
       body: Stack(
         children: [
           Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
+              if (_selectedIndex != 3)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      _buildHeaderTabButton(0, 'Schedule'),
+                      const SizedBox(width: 10),
+                      _buildHeaderTabButton(1, 'Notes'),
+                      const SizedBox(width: 10),
+                      _buildHeaderTabButton(2, 'Assignment'),
+                    ],
+                  ),
+                ),
+
+              // INDEXEDSTACK: render semua tab di sini, tapi tampilkan hanya index aktif
+              Expanded(
+                child: IndexedStack(
+                  index: _selectedIndex,
                   children: [
-                    _buildHeaderTabButton(0, 'Schedule'),
-                    const SizedBox(width: 10),
-                    _buildHeaderTabButton(1, 'Notes'),
-                    const SizedBox(width: 10),
-                    _buildHeaderTabButton(2, 'Assignment'),
+                    // Tab 0: Schedule
+                    _buildScheduleTab(),
+
+                    // Tab 1: Notes
+                    _buildNoteTab(),
+
+                    // Tab 2: Assignment
+                    _buildAssignmentTab(),
+
+                    // Tab 3: Statistics content (tidak memakai Scaffold di dalamnya)
+                    StatisticsScreen(
+                      assignments: assignments,
+                      weeklyStudyHours: [10, 25, 15, 20],
+                    ),
                   ],
                 ),
               ),
-              Expanded(
-                child: currentTab,
-              ),
             ],
           ),
-          
-          // Overlay untuk menutupi layar ketika add options ditampilkan
+
+          // Overlay untuk menutupi layar (tidak menutupi bottom nav)
           if (_showAddOptions)
-            GestureDetector(
-              onTap: _hideAddOptions,
-              child: Container(
-                color: Colors.black.withOpacity(0.3),
-                width: double.infinity,
-                height: double.infinity,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 60,
+              child: GestureDetector(
+                onTap: _hideAddOptions,
+                child: Container(
+                  color: Colors.black.withOpacity(0.3),
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
               ),
             ),
-          
-          // Tombol Add Options
+
+          // Tombol Add Options (sama seperti sebelumnya)
           if (_showAddOptions)
             Positioned(
               right: 16,
@@ -787,7 +850,8 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AddEditSchedulePage(isEditing: false),
+                        builder: (_) =>
+                            const AddEditSchedulePage(isEditing: false),
                       ),
                     );
                   }),
@@ -807,7 +871,8 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AddEditAssignmentPage(isEditing: false),
+                        builder: (_) =>
+                            const AddEditAssignmentPage(isEditing: false),
                       ),
                     );
                   }),
@@ -816,23 +881,26 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (_showAddOptions) {
-            _hideAddOptions();
-          } else {
-            _showAddOptionsFunc();
-          }
-        },
-        backgroundColor: kAccentColor,
-        shape: const CircleBorder(),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: _showAddOptions
-              ? const Icon(Icons.close, color: Colors.white, size: 30, key: ValueKey('close'))
-              : const Icon(Icons.add, color: Colors.white, size: 30, key: ValueKey('add')),
-        ),
-      ),
+      floatingActionButton: _selectedIndex == 3
+          ? null
+          : FloatingActionButton(
+              onPressed: () {
+                if (_showAddOptions)
+                  _hideAddOptions();
+                else
+                  _showAddOptionsFunc();
+              },
+              backgroundColor: kAccentColor,
+              shape: const CircleBorder(),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _showAddOptions
+                    ? const Icon(Icons.close,
+                        color: Colors.white, size: 30, key: ValueKey('close'))
+                    : const Icon(Icons.add,
+                        color: Colors.white, size: 30, key: ValueKey('add')),
+              ),
+            ),
       bottomNavigationBar: _buildBottomNavBar(),
     );
   }
@@ -886,14 +954,41 @@ class _HomePageState extends State<HomePage> {
     return Container(
       height: 60,
       decoration: const BoxDecoration(color: kAccentColor),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Icon(Icons.home, color: Colors.white, size: 30),
-          Icon(Icons.access_time, color: Colors.white, size: 30),
-          Icon(Icons.bar_chart, color: Colors.white, size: 30),
-          Icon(Icons.music_note, color: Colors.white, size: 30),
-          Icon(Icons.person, color: Colors.white, size: 30),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedIndex = 0;
+              });
+            },
+            child: const Icon(Icons.home, color: Colors.white, size: 30),
+          ),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedIndex = 1;
+              });
+            },
+            child: const Icon(Icons.access_time, color: Colors.white, size: 30),
+          ),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedIndex = 3;
+              });
+            }, // statistik sebagai tab ke-3
+            child: const Icon(Icons.bar_chart, color: Colors.white, size: 30),
+          ),
+          GestureDetector(
+            onTap: () {},
+            child: const Icon(Icons.music_note, color: Colors.white, size: 30),
+          ),
+          GestureDetector(
+            onTap: () {},
+            child: const Icon(Icons.person, color: Colors.white, size: 30),
+          ),
         ],
       ),
     );
@@ -921,10 +1016,9 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
           ),
           icon: Icon(icon, size: 20),
-          label: Text('+ $title', 
-              style: GoogleFonts.inter(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14)),
+          label: Text('+ $title',
+              style:
+                  GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
         ),
       ),
     );
