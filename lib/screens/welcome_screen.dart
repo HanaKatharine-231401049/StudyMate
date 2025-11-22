@@ -18,7 +18,7 @@ class WelcomeScreen extends StatelessWidget {
         children: [
           // Bagian atas dengan logo dan teks
           Align(
-            alignment: const Alignment(0, -0.3),
+            alignment: const Alignment(0, -0.6),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -58,13 +58,13 @@ class WelcomeScreen extends StatelessWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 1),
                 // Tulisan "StudyMate"
                 Text(
                   'StudyMate',
                   style: TextStyle(
                     fontSize: 24,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w800,
                     fontFamily: 'MontserratAlternates',
                     color: const Color(0xFF03045E),
                   ),
@@ -82,7 +82,7 @@ class WelcomeScreen extends StatelessWidget {
               children: [
                 // Button Continue with Google
                 SizedBox(
-                  width: 535,
+                  width: 345,
                   height: 54,
                   child: OutlinedButton(
                     onPressed: () {},
@@ -90,11 +90,12 @@ class WelcomeScreen extends StatelessWidget {
                       foregroundColor: Colors.black,
                       side: const BorderSide(color: Color(0xFFD8DADC), width: 1),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
+                        borderRadius: BorderRadius.circular(30),
                       ),
+                      alignment: Alignment.centerLeft,
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         Image.asset(
                           'assets/images/google_icon.png',
@@ -102,7 +103,7 @@ class WelcomeScreen extends StatelessWidget {
                           height: 20,
                           errorBuilder: (context, error, stackTrace) {
                             return Icon(
-                              Icons.account_circle,
+                              Icons.web,
                               size: 20,
                               color: Colors.grey,
                             );
@@ -113,7 +114,7 @@ class WelcomeScreen extends StatelessWidget {
                           'Continue with Google',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                             fontFamily: 'Roboto',
                           ),
                         ),
@@ -123,9 +124,9 @@ class WelcomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 
-                // Button Continue with Apple
+                // Button Continue with Email
                 SizedBox(
-                  width: 535,
+                  width: 345,
                   height: 54,
                   child: OutlinedButton(
                     onPressed: () {},
@@ -133,19 +134,20 @@ class WelcomeScreen extends StatelessWidget {
                       foregroundColor: Colors.black,
                       side: const BorderSide(color: Color(0xFFD8DADC), width: 1),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
+                        borderRadius: BorderRadius.circular(30),
                       ),
+                      alignment: Alignment.centerLeft,
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         Image.asset(
-                          'assets/images/apple_icon.png',
+                          'assets/images/email_icon.png',
                           width: 20,
                           height: 20,
                           errorBuilder: (context, error, stackTrace) {
                             return Icon(
-                              Icons.apple,
+                              Icons.email,
                               size: 20,
                               color: Colors.grey,
                             );
@@ -153,10 +155,10 @@ class WelcomeScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          'Continue with Apple',
+                          'Continue with Email',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                             fontFamily: 'Roboto',
                           ),
                         ),
@@ -185,7 +187,7 @@ class WelcomeScreen extends StatelessWidget {
                           text: 'Log In',
                           style: TextStyle(
                             fontSize: 14, // Ukuran font 14
-                            fontWeight: FontWeight.w600, // Semi bold
+                            fontWeight: FontWeight.w800, // Semi bold
                             fontFamily: 'Inter',
                             color: const Color(0xFF0386D0),
                           ),
