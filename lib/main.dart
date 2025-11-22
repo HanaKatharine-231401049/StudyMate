@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/splash_screen.dart'; // Import dari folder screens
+import 'screens/splash_screen.dart'; 
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
         primaryColor: const Color(0xFF03045E),
         fontFamily: 'Inter',
       ),
-      home: const SplashScreen(), // Mulai dari Splash Screen
+      home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
