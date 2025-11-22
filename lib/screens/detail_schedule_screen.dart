@@ -19,22 +19,15 @@ class DetailSchedulePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Schedule Details', 
-            style: GoogleFonts.montserrat(fontWeight: FontWeight.bold, color: kAccentColor)),
+        title: Text(
+          'Schedule',
+          style: GoogleFonts.montserrat(
+              fontWeight: FontWeight.bold, color: kAccentColor),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: kAccentColor),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit, color: kAccentColor),
-            onPressed: onEdit,
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: kDeleteColor),
-            onPressed: onDelete,
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -49,6 +42,16 @@ class DetailSchedulePage extends StatelessWidget {
               _buildDetailItem('Time', schedule.time),
               const SizedBox(height: 20),
               _buildDetailItem('Description', schedule.description),
+              const SizedBox(height: 20),
+              // tombol edit & delete dalam Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _buildActionButton(Icons.edit, kAccentColor, onEdit),
+                  const SizedBox(width: 20),
+                  _buildActionButton(Icons.delete, kDeleteColor, onDelete),
+                ],
+              ),
             ],
           ),
         ),
@@ -61,11 +64,9 @@ class DetailSchedulePage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, 
+        Text(label,
             style: GoogleFonts.inter(
-                fontWeight: FontWeight.bold, 
-                fontSize: 16,
-                color: kAccentColor)),
+                fontWeight: FontWeight.bold, fontSize: 16, color: kAccentColor)),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
@@ -75,10 +76,23 @@ class DetailSchedulePage extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: kAccentColor.withOpacity(0.3)),
           ),
-          child: Text(value, 
-              style: GoogleFonts.inter(fontSize: 16)),
+          child: Text(value, style: GoogleFonts.inter(fontSize: 16)),
         ),
       ],
+    );
+  }
+
+  // helper action button (sama gaya dengan AddEditSchedulePage)
+  Widget _buildActionButton(IconData icon, Color color, VoidCallback onPressed) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(50),
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 30),
+        onPressed: onPressed,
+      ),
     );
   }
 

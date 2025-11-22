@@ -4,18 +4,42 @@ import '../utils/colors.dart';
 import '../models/note.dart'; 
 import '../utils/dialog_components.dart'; 
 
-class AddEditNotePage extends StatelessWidget {
+class AddEditNotePage extends StatefulWidget {
   final bool isEditing;
   final Note? note;
 
   const AddEditNotePage({super.key, required this.isEditing, this.note});
 
+  @override
+  State<AddEditNotePage> createState() => _AddEditNotePageState();
+}
+
+class _AddEditNotePageState extends State<AddEditNotePage> {
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Hanya isi controller jika sedang edit dan note tidak null
+    if (widget.isEditing && widget.note != null) {
+      _titleController.text = widget.note!.title;
+      _dateController.text = widget.note!.date;
+      _descriptionController.text = widget.note!.description;
+    }
+  }
+
   void _saveNote(BuildContext context) {
     Navigator.pop(context); 
     showDialog(
       context: context,
-      builder: (_) =>
-          const SuccessDialog(title: 'Note saved successfully'),
+      builder: (_) => SuccessDialog(
+        title: 'Note ${widget.isEditing ? 'updated' : 'saved'} successfully',
+        onConfirm: () {
+          Navigator.pop(context);
+        },
+      ),
     );
   }
 
@@ -46,13 +70,6 @@ class AddEditNotePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleController =
-        TextEditingController(text: isEditing ? note!.title : 'Grafika Komputer');
-    final dateController =
-        TextEditingController(text: isEditing ? note!.date : '15 January 2025');
-    final descriptionController = TextEditingController(
-        text: isEditing ? note!.description : 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris quam orci, convallis nec enim eu, hendrerit imperdiet tortor. Nulla scelerisque posuere ullamcorper. Lorem ipsum dolor sit amet....');
-
     return Scaffold(
       appBar: AppBar(
         title: Text('Note', style: GoogleFonts.montserrat(fontWeight: FontWeight.bold, color: kAccentColor)),
@@ -70,7 +87,7 @@ class AddEditNotePage extends StatelessWidget {
               Text('Title', style: GoogleFonts.inter()),
               const SizedBox(height: 5),
               TextFormField(
-                controller: titleController,
+                controller: _titleController,
                 decoration: _inputDecoration(),
               ),
               const SizedBox(height: 20),
@@ -78,7 +95,7 @@ class AddEditNotePage extends StatelessWidget {
               Text('Date', style: GoogleFonts.inter()),
               const SizedBox(height: 5),
               TextFormField(
-                controller: dateController,
+                controller: _dateController,
                 readOnly: true,
                 decoration: _inputDecoration(suffixIcon: const Icon(Icons.calendar_today, color: kAccentColor)),
               ),
@@ -87,39 +104,32 @@ class AddEditNotePage extends StatelessWidget {
               Text('Description', style: GoogleFonts.inter()),
               const SizedBox(height: 5),
               TextFormField(
-                controller: descriptionController,
-                maxLines: 7,
+                controller: _descriptionController,
+                maxLines: 4,
                 decoration: _inputDecoration(isTextArea: true),
               ),
               const SizedBox(height: 40),
 
-              isEditing
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        _buildActionButton(Icons.edit, kAccentColor, () => _saveNote(context)),
-                        const SizedBox(width: 20),
-                        _buildActionButton(Icons.delete, kDeleteColor, () => _confirmDeleteNote(context)),
-                      ],
-                    )
-                  : Center(
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () => _saveNote(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: kAccentColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ),
-                          child: Text('Save',
-                              style: GoogleFonts.montserrat(
-                                  fontSize: 18, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
+              // Untuk mode editing dan add, sekarang hanya menampilkan tombol Save
+              Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  width: 100,
+                  child: ElevatedButton(
+                    onPressed: () => _saveNote(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kAccentColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
+                    child: Text('Save',
+                        style: GoogleFonts.montserrat(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -145,19 +155,6 @@ class AddEditNotePage extends StatelessWidget {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: kAccentColor, width: 2.0),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(IconData icon, Color color, VoidCallback onPressed) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(50),
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: 30),
-        onPressed: onPressed,
       ),
     );
   }

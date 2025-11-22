@@ -23,6 +23,7 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
   @override
   void initState() {
     super.initState();
+    // Hanya isi controller jika sedang edit dan schedule tidak null
     if (widget.isEditing && widget.schedule != null) {
       _titleController.text = widget.schedule!.title;
       _dateController.text = widget.schedule!.date;
@@ -96,9 +97,11 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
               ),
               const SizedBox(height: 40),
 
-              Center(
+              // Untuk mode editing dan add, sekarang hanya menampilkan tombol Save
+              Align(
+                alignment: Alignment.centerRight,
                 child: SizedBox(
-                  width: double.infinity,
+                  width: 100,
                   child: ElevatedButton(
                     onPressed: () => _saveSchedule(context),
                     style: ElevatedButton.styleFrom(
@@ -108,7 +111,7 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: Text(widget.isEditing ? 'Update' : 'Save',
+                    child: Text('Save',
                         style: GoogleFonts.montserrat(
                             fontSize: 18, fontWeight: FontWeight.bold)),
                   ),

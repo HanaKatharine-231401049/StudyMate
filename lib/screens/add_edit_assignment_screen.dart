@@ -19,31 +19,6 @@ class AddEditAssignmentPage extends StatelessWidget {
     );
   }
 
-  void _confirmDeleteAssignment(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => ConfirmationDialog(
-        title: 'Are you sure want to delete assignment?',
-        icon: Icons.delete_forever,
-        onConfirm: () {
-          Navigator.pop(ctx);
-          Navigator.pop(context);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            showDialog(
-              context: context,
-              builder: (innerCtx) => SuccessDialog(
-                title: 'Assignment deleted successfully',
-                onConfirm: () {
-                  Navigator.pop(innerCtx);
-                },
-              ),
-            );
-          });
-        },
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final titleController =
@@ -103,33 +78,26 @@ class AddEditAssignmentPage extends StatelessWidget {
               ),
               const SizedBox(height: 40),
 
-              isEditing
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        _buildActionButton(Icons.edit, kAccentColor, () => _saveAssignment(context)),
-                        const SizedBox(width: 20),
-                        _buildActionButton(Icons.delete, kDeleteColor, () => _confirmDeleteAssignment(context)),
-                      ],
-                    )
-                  : Center(
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () => _saveAssignment(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: kAccentColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ),
-                          child: Text('Save',
-                              style: GoogleFonts.montserrat(
-                                  fontSize: 18, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
+              // Untuk mode editing dan add, sekarang hanya menampilkan tombol Save
+              Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  width: 100,
+                  child: ElevatedButton(
+                    onPressed: () => _saveAssignment(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kAccentColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
+                    child: Text('Save',
+                        style: GoogleFonts.montserrat(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -155,19 +123,6 @@ class AddEditAssignmentPage extends StatelessWidget {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: kAccentColor, width: 2.0),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(IconData icon, Color color, VoidCallback onPressed) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(50),
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: 30),
-        onPressed: onPressed,
       ),
     );
   }
