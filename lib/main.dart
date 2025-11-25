@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:studymate/screens/home_screen.dart';
 import 'screens/splash_screen.dart'; 
 
 void main() {
@@ -16,7 +17,7 @@ class MyApp extends StatelessWidget {
         primaryColor: const Color(0xFF03045E),
         fontFamily: 'Inter',
       ),
-      home: const SplashScreen(),
+      home: const HomePage(),
       debugShowCheckedModeBanner: false,
     );
   }

@@ -668,14 +668,14 @@ class _HomePageState extends State<HomePage> {
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isFinished ? Colors.white : kSuccessColor,
+                  color: isFinished ?  kSuccessColor : Colors.white ,
                   shape: BoxShape.circle,
                   border: Border.all(
                       color: isFinished ? kSuccessColor : Colors.transparent),
                 ),
                 child: Icon(
-                  isFinished ? Icons.refresh : Icons.check,
-                  color: isFinished ? kSuccessColor : Colors.white,
+                  isFinished ? Icons.check : Icons.check,
+                  color: isFinished ?  Colors.white : kSuccessColor ,
                   size: 20,
                 ),
               ),

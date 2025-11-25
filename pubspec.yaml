@@ -24,6 +24,7 @@ dependencies:
   firebase_auth: ^6.1.2
   google_sign_in: ^7.2.0
   fl_chart: ^1.1.1  
+  horizontal_list_calendar: ^1.0.0
 
 dev_dependencies:
   flutter_test:
