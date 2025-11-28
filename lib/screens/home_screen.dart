@@ -1,3 +1,4 @@
+// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 // import 'package:studymate/screens/statistics_screen.dart';
@@ -20,6 +21,8 @@ import 'detail_assignment_screen.dart';
 import 'detail_note_screen.dart';
 import 'statistics_screen.dart';
 import 'mood_screen.dart';
+import 'pomodoro_screen.dart';
+import 'profile_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -29,7 +32,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // 0: Schedule, 1: Notes, 2: Assignment
+  // 0: Schedule, 1: Notes, 2: Assignment, 3: Statistics, 4: Mood, 5: Pomodoro, 6: Profile
   int _selectedIndex = 0;
   // 0: Unfinished, 1: Finished (untuk Assignment)
   int _assignmentTabIndex = 0;
@@ -721,21 +724,12 @@ class _HomePageState extends State<HomePage> {
   // --- Widget Utama ---
   @override
   Widget build(BuildContext context) {
-    // final tabs = [
-    //   _buildScheduleTab(),
-    //   _buildNoteTab(),
-    //   _buildAssignmentTab(),
-    //   StatisticsContent(
-    //     assignments: assignments,
-    //     weeklyStudyHours: [10, 25, 15, 20],
-    //   ),
-    // ];
-
     int totalTasks = assignments.where((a) => !a.isFinished).length;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: (_selectedIndex == 3 || _selectedIndex == 4)
+
+      appBar: (_selectedIndex == 3 || _selectedIndex == 4 || _selectedIndex == 5 || _selectedIndex == 6)
           ? null
           : AppBar(
               backgroundColor: Colors.white,
@@ -780,7 +774,8 @@ class _HomePageState extends State<HomePage> {
         children: [
           Column(
             children: [
-              if (_selectedIndex != 3 && _selectedIndex != 4)
+              // Hanya tampilkan header tab bila index 0/1/2 (Schedule/Notes/Assignment)
+              if (_selectedIndex == 0 || _selectedIndex == 1 || _selectedIndex == 2)
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
@@ -808,21 +803,26 @@ class _HomePageState extends State<HomePage> {
                     // Tab 2: Assignment
                     _buildAssignmentTab(),
 
-                    // Tab 3: Statistics 
+                    // Tab 3: Statistics
                     StatisticsScreen(
                       assignments: assignments,
                       weeklyStudyHours: [10, 25, 15, 20],
                     ),
-                    // Tab 4: Mood / Music screen 
+                    // Tab 4: Mood / Music screen
                     const MoodScreen(),
+
+                    // Tab 5: Pomodoro
+                    const PomodoroScreen(),
+
+                    // Tab 6: Profile
+                    const ProfileScreen(),
                   ],
                 ),
               ),
             ],
           ),
 
-          // Overlay untuk menutupi layar (tidak menutupi bottom nav)
-          if (_showAddOptions)
+          if (_showAddOptions && _selectedIndex != 5 && _selectedIndex != 6)
             Positioned(
               top: 0,
               left: 0,
@@ -838,8 +838,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-          // Tombol Add Options (sama seperti sebelumnya)
-          if (_showAddOptions)
+          if (_showAddOptions && _selectedIndex != 5 && _selectedIndex != 6)
             Positioned(
               right: 16,
               bottom: 80,
@@ -852,8 +851,7 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            const AddEditSchedulePage(isEditing: false),
+                        builder: (_) => const AddEditSchedulePage(isEditing: false),
                       ),
                     );
                   }),
@@ -873,8 +871,7 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            const AddEditAssignmentPage(isEditing: false),
+                        builder: (_) => const AddEditAssignmentPage(isEditing: false),
                       ),
                     );
                   }),
@@ -883,7 +880,7 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
-      floatingActionButton: (_selectedIndex == 3 || _selectedIndex == 4)
+      floatingActionButton: (_selectedIndex == 3 || _selectedIndex == 4 || _selectedIndex == 5 || _selectedIndex == 6)
           ? null
           : FloatingActionButton(
               onPressed: () {
@@ -929,6 +926,7 @@ class _HomePageState extends State<HomePage> {
             if (index != 2) {
               _assignmentTabIndex = 0;
             }
+            _showAddOptions = false;
           });
         },
         child: Container(
@@ -953,52 +951,67 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildBottomNavBar() {
-    return Container(
-      height: 60,
-      decoration: const BoxDecoration(color: kAccentColor),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedIndex = 0;
-              });
-            },
-            child: const Icon(Icons.home, color: Colors.white, size: 30),
-          ),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedIndex = 1;
-              });
-            },
-            child: const Icon(Icons.access_time, color: Colors.white, size: 30),
-          ),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedIndex = 3;
-              });
-            }, // statistik sebagai tab ke-3
-            child: const Icon(Icons.bar_chart, color: Colors.white, size: 30),
-          ),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedIndex = 4;
-              });
-            },
-            child: const Icon(Icons.music_note, color: Colors.white, size: 30),
-          ),
-          GestureDetector(
-            onTap: () {},
-            child: const Icon(Icons.person, color: Colors.white, size: 30),
-          ),
-        ],
+    // Fixed visible height for the app bottom nav (kept constant)
+    return SafeArea(
+      top: false,
+      bottom: true,
+      child: Container(
+        height: 60, // keep fixed height
+        color: kAccentColor,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedIndex = 0;
+                  _showAddOptions = false;
+                });
+              },
+              child: const Icon(Icons.home, color: Colors.white, size: 30),
+            ),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedIndex = 5; // Pomodoro
+                  _showAddOptions = false;
+                });
+              },
+              child: const Icon(Icons.access_time, color: Colors.white, size: 30),
+            ),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedIndex = 3;
+                  _showAddOptions = false;
+                });
+              },
+              child: const Icon(Icons.bar_chart, color: Colors.white, size: 30),
+            ),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedIndex = 4;
+                  _showAddOptions = false;
+                });
+              },
+              child: const Icon(Icons.music_note, color: Colors.white, size: 30),
+            ),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedIndex = 6;
+                  _showAddOptions = false;
+                });
+              },
+              child: const Icon(Icons.person, color: Colors.white, size: 30),
+            ),
+          ],
+        ),
       ),
     );
   }
+
 
   Widget _buildAddOptionButton(
       String title, IconData icon, VoidCallback onPressed) {

@@ -1,20 +1,20 @@
-// lib/sign_in_screen.dart
 import 'package:flutter/material.dart';
-import 'sign_up_screen.dart';
-import 'home_screen.dart';
-import 'forgot_password_screen.dart';
+import 'sign_in_screen.dart';
 
-class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  State<SignInScreen> createState() => _SignInScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
+class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _acceptTerms = false;
 
   void _togglePasswordVisibility() {
     setState(() {
@@ -22,36 +22,81 @@ class _SignInScreenState extends State<SignInScreen> {
     });
   }
 
-  void _navigateToForgotPassword() {
-    // Navigate to the ForgotPasswordScreen
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+  void _toggleConfirmPasswordVisibility() {
+    setState(() {
+      _obscureConfirmPassword = !_obscureConfirmPassword;
+    });
+  }
+
+  void _navigateToSignIn(BuildContext context) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const SignInScreen()),
     );
   }
 
-  void _navigateToSignUp() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const SignUpScreen()),
-    );
+  void _signUpWithGoogle() {
+    // TODO: Implement Google sign up
   }
 
-  void _signInWithGoogle() {
-    // TODO: Implement Google sign in
-  }
-
-  void _signIn() {
+  void _signUp() {
     // Validasi form
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+    if (_emailController.text.isEmpty || 
+        _passwordController.text.isEmpty || 
+        _confirmPasswordController.text.isEmpty) {
       _showErrorDialog('Please fill all fields');
       return;
     }
 
-    // TODO: Implement sign in logic
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showErrorDialog('Passwords do not match');
+      return;
+    }
 
-    // Setelah sign in berhasil, arahkan ke HomeScreen
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const HomePage()),
+    if (!_acceptTerms) {
+      _showErrorDialog('Please accept the terms and privacy policy');
+      return;
+    }
+
+    _showSuccessDialog();
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 24),
+              SizedBox(width: 8),
+              Text('Success'),
+            ],
+          ),
+          content: const Text('Registration successful! You will be redirected to sign in.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); 
+                _navigateToSignIn(context); 
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
+
+    // Auto navigate after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        Navigator.of(context).pop(); 
+        _navigateToSignIn(context);
+      }
+    });
   }
 
   void _showErrorDialog(String message) {
@@ -82,13 +127,6 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -100,24 +138,24 @@ class _SignInScreenState extends State<SignInScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo dan Tulisan Sign In sejajar
+              // Logo dan Tulisan Sign Up 
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Tulisan Sign In
+                  // Tulisan Sign Up
                   Text(
-                    'Sign In',
-                    style: const TextStyle(
+                    'Sign Up',
+                    style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w600,
                       fontFamily: 'Poppins',
-                      color: Color(0xFF03045E),
+                      color: const Color(0xFF03045E),
                     ),
                   ),
                   // Logo di samping kanan
@@ -127,19 +165,19 @@ class _SignInScreenState extends State<SignInScreen> {
                     height: 70,
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
-                      return const Icon(
+                      return Icon(
                         Icons.school_outlined,
                         size: 40,
-                        color: Color(0xFF03045E),
+                        color: const Color(0xFF03045E),
                       );
                     },
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-
+              const SizedBox(height: 20),
+              
               // Email Field
-              const Text(
+              Text(
                 'Email',
                 style: TextStyle(
                   fontSize: 16,
@@ -176,11 +214,11 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-
-              // Password Field
-              const Text(
-                'Password',
+              const SizedBox(height: 16),
+              
+              // Create Password Field
+              Text(
+                'Create Password',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.normal,
@@ -196,7 +234,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    hintText: 'Password',
+                    hintText: 'Create Password',
                     hintStyle: TextStyle(
                       fontFamily: 'Inter',
                       color: Colors.grey[300],
@@ -224,41 +262,114 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-
-              // Forgot Password
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: _navigateToForgotPassword,
-                  child: const Text(
-                    'Forgot password?',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+              const SizedBox(height: 16),
+              
+              // Confirm Password Field
+              Text(
+                'Confirm Password',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.normal,
+                  fontFamily: 'Inter',
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 53,
+                child: TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirmPassword,
+                  decoration: InputDecoration(
+                    hintText: 'Confirm Password',
+                    hintStyle: TextStyle(
                       fontFamily: 'Inter',
-                      color: Color(0xFF0386D0),
+                      color: Colors.grey[300],
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFF0386D0)),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                        color: Colors.grey[600],
+                      ),
+                      onPressed: _toggleConfirmPasswordVisibility,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
-
-              // Sign In Button
+              const SizedBox(height: 16),
+              
+              // Terms and Privacy Policy Checkbox
+              Row(
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: _acceptTerms,
+                      onChanged: (bool? value) {
+                        setState(() {
+                          _acceptTerms = value ?? false;
+                        });
+                      },
+                      activeColor: const Color(0xFF0386D0),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _acceptTerms = !_acceptTerms;
+                        });
+                      },
+                      child: Text(
+                        'I accept the terms and privacy policy',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal,
+                          fontFamily: 'Inter',
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // Sign Up Button
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _signIn,
+                  onPressed: _acceptTerms ? _signUp : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF03045E),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    disabledBackgroundColor: Colors.grey[400],
                   ),
-                  child: const Text(
-                    'Sign In',
+                  child: Text(
+                    'Sign Up',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -267,9 +378,9 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
-
-              // Garis dengan tulisan Or Sign in with
+              const SizedBox(height: 24),
+              
+              // Garis dengan tulisan Or Sign up with
               Stack(
                 alignment: Alignment.center,
                 children: [
@@ -281,7 +392,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     color: Colors.white,
                     child: Text(
-                      'Or Sign in with',
+                      'Or Sign up with',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.normal,
@@ -292,15 +403,15 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-
-              // Google Sign In Button
+              const SizedBox(height: 24),
+              
+              // Google Sign Up Button
               Center(
                 child: SizedBox(
                   width: 108,
                   height: 56,
                   child: OutlinedButton(
-                    onPressed: _signInWithGoogle,
+                    onPressed: _signUpWithGoogle,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.black,
                       side: const BorderSide(color: Color(0xFFD8DADC)),
@@ -317,24 +428,24 @@ class _SignInScreenState extends State<SignInScreen> {
                         return Icon(
                           Icons.account_circle,
                           size: 20,
-                          color: Colors.grey[600],
+                          color: Colors.grey,
                         );
                       },
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 40),
-
-              // Don't have an account? Sign Up
+              const SizedBox(height: 32),
+              
+              // Already have an account? Sign In
               Center(
                 child: GestureDetector(
-                  onTap: _navigateToSignUp,
+                  onTap: () => _navigateToSignIn(context),
                   child: RichText(
-                    text: const TextSpan(
+                    text: TextSpan(
                       children: [
                         TextSpan(
-                          text: 'Don\'t have an account? ',
+                          text: 'Already have an account? ',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.normal,
@@ -343,12 +454,12 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                         ),
                         TextSpan(
-                          text: 'Sign Up',
+                          text: 'Sign In',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
                             fontFamily: 'Inter',
-                            color: Color(0xFF0386D0),
+                            color: const Color(0xFF0386D0),
                           ),
                         ),
                       ],
@@ -362,5 +473,13 @@ class _SignInScreenState extends State<SignInScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 }
