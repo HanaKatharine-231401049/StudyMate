@@ -96,7 +96,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                             width: 60,
                             height: 60,
                             decoration: BoxDecoration(
-                              color: Colors.grey[600],
+                              color: Colors.grey,
                               borderRadius: BorderRadius.circular(15),
                             ),
                             child: const 

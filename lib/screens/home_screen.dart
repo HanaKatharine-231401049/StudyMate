@@ -19,7 +19,7 @@ import 'detail_schedule_screen.dart';
 import 'detail_assignment_screen.dart';
 import 'detail_note_screen.dart';
 import 'statistics_screen.dart';
-// import 'statistics_content.dart';
+import 'mood_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -352,7 +352,7 @@ class _HomePageState extends State<HomePage> {
               builder: (context) => SuccessDialog(
                 title: 'Schedule deleted successfully',
                 onConfirm: () {
-                  Navigator.pop(context);
+                  // Navigator.pop(context);
                 },
               ),
             );
@@ -506,7 +506,7 @@ class _HomePageState extends State<HomePage> {
               builder: (context) => SuccessDialog(
                 title: 'Note deleted successfully',
                 onConfirm: () {
-                  Navigator.pop(context);
+                  // Navigator.pop(context);
                 },
               ),
             );
@@ -708,7 +708,7 @@ class _HomePageState extends State<HomePage> {
               builder: (context) => SuccessDialog(
                 title: 'Assignment deleted successfully',
                 onConfirm: () {
-                  Navigator.pop(context);
+                  // Navigator.pop(context);
                 },
               ),
             );
@@ -735,7 +735,7 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: _selectedIndex == 3
+      appBar: (_selectedIndex == 3 || _selectedIndex == 4)
           ? null
           : AppBar(
               backgroundColor: Colors.white,
@@ -780,7 +780,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           Column(
             children: [
-              if (_selectedIndex != 3)
+              if (_selectedIndex != 3 && _selectedIndex != 4)
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
@@ -808,11 +808,13 @@ class _HomePageState extends State<HomePage> {
                     // Tab 2: Assignment
                     _buildAssignmentTab(),
 
-                    // Tab 3: Statistics content (tidak memakai Scaffold di dalamnya)
+                    // Tab 3: Statistics 
                     StatisticsScreen(
                       assignments: assignments,
                       weeklyStudyHours: [10, 25, 15, 20],
                     ),
+                    // Tab 4: Mood / Music screen 
+                    const MoodScreen(),
                   ],
                 ),
               ),
@@ -825,7 +827,7 @@ class _HomePageState extends State<HomePage> {
               top: 0,
               left: 0,
               right: 0,
-              bottom: 60,
+              bottom: MediaQuery.of(context).padding.bottom,
               child: GestureDetector(
                 onTap: _hideAddOptions,
                 child: Container(
@@ -881,7 +883,7 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
-      floatingActionButton: _selectedIndex == 3
+      floatingActionButton: (_selectedIndex == 3 || _selectedIndex == 4)
           ? null
           : FloatingActionButton(
               onPressed: () {
@@ -982,7 +984,11 @@ class _HomePageState extends State<HomePage> {
             child: const Icon(Icons.bar_chart, color: Colors.white, size: 30),
           ),
           GestureDetector(
-            onTap: () {},
+            onTap: () {
+              setState(() {
+                _selectedIndex = 4;
+              });
+            },
             child: const Icon(Icons.music_note, color: Colors.white, size: 30),
           ),
           GestureDetector(
@@ -996,10 +1002,14 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildAddOptionButton(
       String title, IconData icon, VoidCallback onPressed) {
+    const double buttonWidth = 170; // atur lebar sesuai yang diinginkan
+    const double buttonHeight = 48; // atur tinggi sesuai yang diinginkan
     return Material(
       elevation: 4,
       borderRadius: BorderRadius.circular(10),
       child: Container(
+        width: buttonWidth, // pastikan semua sama lebar
+        height: buttonHeight, // pastikan semua sama tinggi (opsional)
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
@@ -1013,7 +1023,8 @@ class _HomePageState extends State<HomePage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+            fixedSize: const Size(buttonWidth, buttonHeight),
+            elevation: 0,
           ),
           icon: Icon(icon, size: 20),
           label: Text('+ $title',
