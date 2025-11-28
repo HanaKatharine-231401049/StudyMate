@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'sign_in_screen.dart';
+import 'sign_up_screen.dart'; // Tambahkan import ini
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -7,6 +8,12 @@ class WelcomeScreen extends StatelessWidget {
   void _navigateToSignIn(BuildContext context) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const SignInScreen()),
+    );
+  }
+
+  void _navigateToSignUp(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const SignUpScreen()),
     );
   }
 
@@ -26,8 +33,8 @@ class WelcomeScreen extends StatelessWidget {
                 Text(
                   'Your True Study Mate',
                   style: TextStyle(
-                    fontSize: 20, // Ukuran font 20
-                    fontWeight: FontWeight.w600, // Semi bold
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600, 
                     fontFamily: 'Roboto',
                     color: Colors.black,
                   ),
@@ -37,8 +44,8 @@ class WelcomeScreen extends StatelessWidget {
                 Text(
                   'Be a mate, be part of us',
                   style: TextStyle(
-                    fontSize: 14, // Ukuran font 14 (lebih kecil)
-                    fontWeight: FontWeight.normal, // Regular
+                    fontSize: 14, 
+                    fontWeight: FontWeight.normal, 
                     fontFamily: 'Roboto',
                     color: const Color(0xFFA4A1A1),
                   ),
@@ -73,7 +80,6 @@ class WelcomeScreen extends StatelessWidget {
             ),
           ),
           
-          // Bagian bawah dengan buttons dan tulisan
           Positioned(
             bottom: 80,
             left: 0,
@@ -129,7 +135,7 @@ class WelcomeScreen extends StatelessWidget {
                   width: 345,
                   height: 54,
                   child: OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () => _navigateToSignUp(context), 
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.black,
                       side: const BorderSide(color: Color(0xFFD8DADC), width: 1),
@@ -177,18 +183,17 @@ class WelcomeScreen extends StatelessWidget {
                         TextSpan(
                           text: 'Already have an account? ',
                           style: TextStyle(
-                            fontSize: 14, // Ukuran font 14
-                            fontWeight: FontWeight.normal, // Regular
+                            fontSize: 14, 
+                            fontWeight: FontWeight.normal, 
                             fontFamily: 'Inter',
-                            color: Colors.black.withOpacity(0.7), // Hitam 70%
+                            color: Colors.black.withOpacity(0.7),
                           ),
                         ),
                         TextSpan(
                           text: 'Log In',
                           style: TextStyle(
-                            fontSize: 14, // Ukuran font 14
-                            fontWeight: FontWeight.w800, // Semi bold
-                            fontFamily: 'Inter',
+                            fontSize: 14, 
+                            fontWeight: FontWeight.w800, 
                             color: const Color(0xFF0386D0),
                           ),
                         ),

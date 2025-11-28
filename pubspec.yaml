@@ -11,20 +11,28 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+
   google_fonts: ^6.1.0 
   cupertino_icons: ^1.0.8
   flutter_svg: ^2.2.1
+
   go_router: ^16.2.4
+
   provider: ^6.1.5+1
   shared_preferences: ^2.5.3
+
   http: ^1.6.0
   cached_network_image: ^3.4.1
+
   firebase_core: ^4.2.1
   firebase_auth: ^6.1.2
   google_sign_in: ^7.2.0
+
   fl_chart: ^1.1.1  
+
   url_launcher: ^6.2.5
+
+  image_picker: ^1.1.2 
 
 dev_dependencies:
   flutter_test:
@@ -33,17 +41,19 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+
   assets:
     - assets/images/
-  
+
   fonts:
     - family: MontserratAlternates
       fonts:
         - asset: assets/fonts/MontserratAlternates-SemiBold.ttf
+
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter-SemiBold.ttf
+
     - family: Roboto
       fonts:
         - asset: assets/fonts/Roboto-SemiBold.ttf
