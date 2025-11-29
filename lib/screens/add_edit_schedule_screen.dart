@@ -1,8 +1,9 @@
+// lib/screens/add_edit_schedule_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/colors.dart';
 import '../models/schedule.dart';
-import '../utils/dialog_components.dart';
+import '../widgets/calendar_picker.dart';
 
 class AddEditSchedulePage extends StatefulWidget {
   final bool isEditing;
@@ -23,7 +24,6 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
   @override
   void initState() {
     super.initState();
-    // Hanya isi controller jika sedang edit dan schedule tidak null
     if (widget.isEditing && widget.schedule != null) {
       _titleController.text = widget.schedule!.title;
       _dateController.text = widget.schedule!.date;
@@ -32,30 +32,63 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
     }
   }
 
-  void _saveSchedule(BuildContext context) {
-    // Logika penyimpanan data (Placeholder)
-    Navigator.pop(context); 
-    showDialog(
-      context: context,
-      builder: (_) => SuccessDialog(
-        title: 'Schedule ${widget.isEditing ? 'updated' : 'saved'} successfully',
-        onConfirm: () {
-          Navigator.pop(context);
-        },
-      ),
-    );
+  Future<void> _saveSchedule(BuildContext context) async {
+    if (_titleController.text.trim().isEmpty ||
+        _dateController.text.trim().isEmpty ||
+        _timeController.text.trim().isEmpty) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Validation Error'),
+          content: const Text('Please fill title, date and time.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (widget.isEditing && widget.schedule != null) {
+      final updated = widget.schedule!.copyWith(
+        title: _titleController.text.trim(),
+        date: _dateController.text.trim(),
+        time: _timeController.text.trim(),
+        description: _descriptionController.text.trim(),
+      );
+      Navigator.pop(context, updated);
+    } else {
+      final created = Schedule(
+        _titleController.text.trim(),
+        _dateController.text.trim(),
+        _timeController.text.trim(),
+        _descriptionController.text.trim(),
+      );
+      Navigator.pop(context, created);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.isEditing ? 'Edit' : 'Add'} Schedule', 
-            style: GoogleFonts.montserrat(fontWeight: FontWeight.bold, color: kAccentColor)),
+        title: Text(
+          widget.isEditing ? 'Edit Schedule' : 'Add Schedule',
+          style: GoogleFonts.montserrat(
+            fontWeight: FontWeight.bold,
+            color: kAccentColor,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: kAccentColor),
           onPressed: () => Navigator.pop(context),
         ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: kAccentColor),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -63,41 +96,78 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Title', style: GoogleFonts.inter()),
-              const SizedBox(height: 5),
+              // Title Field
+              Text('Title',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  )),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _titleController,
-                decoration: _inputDecoration(),
+                decoration: _inputDecoration(hintText: 'Enter schedule title'),
               ),
               const SizedBox(height: 20),
 
-              Text('Date', style: GoogleFonts.inter()),
-              const SizedBox(height: 5),
+              // Date Field (gunakan CalendarPickerButton sebagai suffixIcon)
+              Text('Date',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  )),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _dateController,
                 readOnly: true,
-                decoration: _inputDecoration(suffixIcon: const Icon(Icons.calendar_today, color: kAccentColor)),
+                // onTap left empty so only icon triggers picker; if you want tapping field to open picker too, enable onTap.
+                decoration: _inputDecoration(
+                  hintText: 'Select date',
+                  suffixIcon: CalendarPickerButton(
+                    initialDateString:
+                        _dateController.text.isEmpty ? null : _dateController.text,
+                    onDateSelected: (formatted) {
+                      setState(() {
+                        _dateController.text = formatted;
+                      });
+                    },
+                    size: 36,
+                    filled: false, // tanpa kotak biru di belakang ikon
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
 
-              Text('Time', style: GoogleFonts.inter()),
-              const SizedBox(height: 5),
+              // Time Field (diubah menjadi text field biasa)
+              Text('Time',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  )),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _timeController,
-                decoration: _inputDecoration(),
+                decoration: _inputDecoration(
+                  hintText: 'Enter time (e.g., 10:30 - 11:20)',
+                ),
               ),
               const SizedBox(height: 20),
 
-              Text('Description', style: GoogleFonts.inter()),
-              const SizedBox(height: 5),
+              // Description Field
+              Text('Description',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  )),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 4,
-                decoration: _inputDecoration(isTextArea: true),
+                decoration:
+                    _inputDecoration(hintText: 'Enter schedule description (optional)', isTextArea: true),
               ),
               const SizedBox(height: 40),
 
-              // Untuk mode editing dan add, sekarang hanya menampilkan tombol Save
+              // Save Button
               Align(
                 alignment: Alignment.centerRight,
                 child: SizedBox(
@@ -109,11 +179,16 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
-                    child: Text('Save',
-                        style: GoogleFonts.montserrat(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      'Save',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -121,45 +196,65 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
-  InputDecoration _inputDecoration({Icon? suffixIcon, bool isTextArea = false}) {
+  InputDecoration _inputDecoration({
+    String? hintText,
+    Widget? suffixIcon,
+    bool isTextArea = false,
+  }) {
     return InputDecoration(
       filled: true,
       fillColor: kBackgroundColor,
-      contentPadding: isTextArea ? const EdgeInsets.all(15) : const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+      hintText: hintText,
+      hintStyle: GoogleFonts.inter(color: Colors.grey[600]),
+      contentPadding:
+          isTextArea ? const EdgeInsets.all(15) : const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
       suffixIcon: suffixIcon,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: kAccentColor, width: 1.5),
+        borderSide: BorderSide(color: kAccentColor, width: 1.5),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: kAccentColor, width: 1.5),
+        borderSide: BorderSide(color: kAccentColor, width: 1.5),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: kAccentColor, width: 2.0),
+        borderSide: BorderSide(color: kAccentColor, width: 2.0),
       ),
     );
   }
 
-  Widget _buildBottomNavBar() {
-    return Container(
-      height: 60,
-      decoration: const BoxDecoration(color: kAccentColor),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          Icon(Icons.home, color: Colors.white, size: 30),
-          Icon(Icons.access_time, color: Colors.white, size: 30),
-          Icon(Icons.bar_chart, color: Colors.white, size: 30),
-          Icon(Icons.music_note, color: Colors.white, size: 30),
-          Icon(Icons.person, color: Colors.white, size: 30),
-        ],
-      ),
-    );
+  String _getMonthName(int month) {
+    switch (month) {
+      case 1:
+        return 'January';
+      case 2:
+        return 'February';
+      case 3:
+        return 'March';
+      case 4:
+        return 'April';
+      case 5:
+        return 'May';
+      case 6:
+        return 'June';
+      case 7:
+        return 'July';
+      case 8:
+        return 'August';
+      case 9:
+        return 'September';
+      case 10:
+        return 'October';
+      case 11:
+        return 'November';
+      case 12:
+        return 'December';
+      default:
+        return '';
+    }
   }
 }

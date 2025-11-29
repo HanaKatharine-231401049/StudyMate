@@ -1,18 +1,25 @@
+// lib/screens/detail_schedule_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/colors.dart';
 import '../models/schedule.dart';
+import '../widgets/bottom_nav_bar.dart';
+import 'home_screen.dart';
 
 class DetailSchedulePage extends StatelessWidget {
   final Schedule schedule;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+
+  /// onEdit should return a Future that resolves to the result from edit page (or null).
+  final Future<dynamic> Function()? onEdit;
+
+  /// onDelete should return Future<bool> -> true jika item benar-benar dihapus.
+  final Future<bool> Function()? onDelete;
 
   const DetailSchedulePage({
     super.key,
     required this.schedule,
-    required this.onEdit,
-    required this.onDelete,
+    this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -22,12 +29,17 @@ class DetailSchedulePage extends StatelessWidget {
         title: Text(
           'Schedule',
           style: GoogleFonts.montserrat(
-              fontWeight: FontWeight.bold, color: kAccentColor),
+            fontWeight: FontWeight.bold,
+            color: kAccentColor,
+          ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: kAccentColor),
           onPressed: () => Navigator.pop(context),
         ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: kAccentColor),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -42,21 +54,53 @@ class DetailSchedulePage extends StatelessWidget {
               _buildDetailItem('Time', schedule.time),
               const SizedBox(height: 20),
               _buildDetailItem('Description', schedule.description),
-              const SizedBox(height: 20),
-              // tombol edit & delete dalam Row
+              const SizedBox(height: 40),
+
+              // tombol edit & delete dalam Row - POSISI DIUBAH MENJADI END (KANAN)
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.end, // Tetap di end (kanan)
                 children: [
-                  _buildActionButton(Icons.edit, kAccentColor, onEdit),
-                  const SizedBox(width: 20),
-                  _buildActionButton(Icons.delete, kDeleteColor, onDelete),
+                  _buildActionButton(Icons.edit, kAccentColor, () async {
+                    if (onEdit != null) {
+                      final res = await onEdit!.call();
+                      if (res != null) Navigator.pop(context, res);
+                    } else {
+                      Navigator.pop(context);
+                    }
+                  }),
+                  const SizedBox(width: 20), // Spacing normal
+                  _buildActionButton(Icons.delete, kDeleteColor, () async {
+                    // tunggu hasil dari onDelete (true kalau dihapus)
+                    if (onDelete != null) {
+                      final bool? deleted = await onDelete!.call();
+                      if (deleted == true) {
+                        // beri tahu pemanggil bahwa item terhapus
+                        Navigator.pop(context, {'deleted': true});
+                      } else {
+                        // jika batal, jangan pop atau lakukan apa-apa
+                      }
+                    } else {
+                      // fallback: langsung pop
+                      Navigator.pop(context);
+                    }
+                  }),
                 ],
               ),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
+      bottomNavigationBar: BottomNavBar(
+        selectedIndex: 0, // Schedule tab index
+        onTapIndex: (index) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => HomePage(initialIndex: index),
+            ),
+            (route) => false,
+          );
+        },
+      ),
     );
   }
 
@@ -64,9 +108,14 @@ class DetailSchedulePage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: GoogleFonts.inter(
-                fontWeight: FontWeight.bold, fontSize: 16, color: kAccentColor)),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: kAccentColor,
+          ),
+        ),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
@@ -82,9 +131,11 @@ class DetailSchedulePage extends StatelessWidget {
     );
   }
 
-  // helper action button (sama gaya dengan AddEditSchedulePage)
+  // helper action button - UKURAN DISAMAKAN
   Widget _buildActionButton(IconData icon, Color color, VoidCallback onPressed) {
     return Container(
+      width: 60, // Lebar ditambahkan untuk konsistensi
+      height: 60, // Tinggi ditambahkan untuk konsistensi
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(50),
@@ -92,23 +143,6 @@ class DetailSchedulePage extends StatelessWidget {
       child: IconButton(
         icon: Icon(icon, color: Colors.white, size: 30),
         onPressed: onPressed,
-      ),
-    );
-  }
-
-  Widget _buildBottomNavBar() {
-    return Container(
-      height: 60,
-      decoration: const BoxDecoration(color: kAccentColor),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          Icon(Icons.home, color: Colors.white, size: 30),
-          Icon(Icons.access_time, color: Colors.white, size: 30),
-          Icon(Icons.bar_chart, color: Colors.white, size: 30),
-          Icon(Icons.music_note, color: Colors.white, size: 30),
-          Icon(Icons.person, color: Colors.white, size: 30),
-        ],
       ),
     );
   }

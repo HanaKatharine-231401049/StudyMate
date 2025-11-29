@@ -1,20 +1,22 @@
+// lib/screens/detail_assignment_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/colors.dart';
 import '../models/assignment.dart';
+import '../widgets/bottom_nav_bar.dart';
+import 'home_screen.dart'; // supaya bisa navigasi kembali ke HomePage
 
 class DetailAssignmentPage extends StatelessWidget {
   final Assignment assignment;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final VoidCallback onToggleStatus;
+  /// onEdit should return a Future that resolves to the result from edit page (or null).
+  final Future<dynamic> Function()? onEdit;
+  final Future<bool> Function()? onDelete;
 
   const DetailAssignmentPage({
     super.key,
     required this.assignment,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onToggleStatus,
+    this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -24,12 +26,17 @@ class DetailAssignmentPage extends StatelessWidget {
         title: Text(
           'Assignment',
           style: GoogleFonts.montserrat(
-              fontWeight: FontWeight.bold, color: kAccentColor),
+            fontWeight: FontWeight.bold,
+            color: kAccentColor,
+          ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: kAccentColor),
           onPressed: () => Navigator.pop(context),
         ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: kAccentColor),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -45,20 +52,56 @@ class DetailAssignmentPage extends StatelessWidget {
               const SizedBox(height: 20),
               _buildDetailItem('Description', assignment.description),
               const SizedBox(height: 20),
-              // tombol edit & delete dalam Row
+
+              // tombol edit & delete dalam Row - DISESUAIKAN
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  _buildActionButton(Icons.edit, kAccentColor, onEdit),
+                  _buildActionButton(Icons.edit, kAccentColor, () async {
+                    // if an onEdit callback is provided, call it and await the result.
+                    if (onEdit != null) {
+                      final res = await onEdit!.call();
+                      // jika ada hasil (mis. Assignment updated atau {'deleted': true}), kembalikan ke previous route
+                      if (res != null) Navigator.pop(context, res);
+                    } else {
+                      // fallback: bila tidak ada callback, cuma pop
+                      Navigator.pop(context);
+                    }
+                  }),
                   const SizedBox(width: 20),
-                  _buildActionButton(Icons.delete, kDeleteColor, onDelete),
+                  _buildActionButton(Icons.delete, kDeleteColor, () async {
+                    // DISESUAIKAN: Diubah seperti di schedule dan note page
+                    if (onDelete != null) {
+                      final bool? deleted = await onDelete!.call();
+                      if (deleted == true) {
+                        Navigator.pop(context, {'deleted': true});
+                      } else {
+                        // jika batal, jangan pop atau lakukan apa-apa
+                      }
+                    } else {
+                      // fallback: langsung pop
+                      Navigator.pop(context);
+                    }
+                  }),
                 ],
               ),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
+      // pakai BottomNavBar yang sama — kita passing selectedIndex = 2 (assignment tab)
+      bottomNavigationBar: BottomNavBar(
+        selectedIndex: 2,
+        onTapIndex: (index) {
+          // Navigasi ke HomePage dan set tab awal sesuai index yang dipilih
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => HomePage(initialIndex: index),
+            ),
+            (route) => false,
+          );
+        },
+      ),
     );
   }
 
@@ -66,9 +109,14 @@ class DetailAssignmentPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: GoogleFonts.inter(
-                fontWeight: FontWeight.bold, fontSize: 16, color: kAccentColor)),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: kAccentColor,
+          ),
+        ),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
@@ -84,57 +132,11 @@ class DetailAssignmentPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusItem() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Status',
-            style: GoogleFonts.inter(
-                fontWeight: FontWeight.bold, fontSize: 16, color: kAccentColor)),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: assignment.isFinished ? kSuccessColor : Colors.orange,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                assignment.isFinished ? 'Finished' : 'Unfinished',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: onToggleStatus,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: assignment.isFinished ? Colors.white : kSuccessColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                      color: assignment.isFinished ? kSuccessColor : Colors.transparent),
-                ),
-                child: Icon(
-                  assignment.isFinished ? Icons.refresh : Icons.check,
-                  color: assignment.isFinished ? kSuccessColor : Colors.white,
-                  size: 20,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // helper action button (sama gaya dengan AddEditAssignmentPage)
+  // helper action button - DISESUAIKAN SAMA SEPERTI SEBELUMNYA
   Widget _buildActionButton(IconData icon, Color color, VoidCallback onPressed) {
     return Container(
+      width: 60, // Ditambahkan width untuk konsistensi
+      height: 60, // Ditambahkan height untuk konsistensi
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(50),
@@ -142,23 +144,6 @@ class DetailAssignmentPage extends StatelessWidget {
       child: IconButton(
         icon: Icon(icon, color: Colors.white, size: 30),
         onPressed: onPressed,
-      ),
-    );
-  }
-
-  Widget _buildBottomNavBar() {
-    return Container(
-      height: 60,
-      decoration: const BoxDecoration(color: kAccentColor),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          Icon(Icons.home, color: Colors.white, size: 30),
-          Icon(Icons.access_time, color: Colors.white, size: 30),
-          Icon(Icons.bar_chart, color: Colors.white, size: 30),
-          Icon(Icons.music_note, color: Colors.white, size: 30),
-          Icon(Icons.person, color: Colors.white, size: 30),
-        ],
       ),
     );
   }
