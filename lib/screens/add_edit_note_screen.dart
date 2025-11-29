@@ -1,82 +1,75 @@
+// lib/screens/add_edit_note_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../utils/colors.dart'; 
-import '../models/note.dart'; 
-import '../utils/dialog_components.dart'; 
+import '../utils/colors.dart';
+import '../models/note.dart';
+import '../widgets/calendar_picker.dart';
 
-class AddEditNotePage extends StatefulWidget {
+class AddEditNotePage extends StatelessWidget {
   final bool isEditing;
   final Note? note;
-
-  const AddEditNotePage({super.key, required this.isEditing, this.note});
-
-  @override
-  State<AddEditNotePage> createState() => _AddEditNotePageState();
-}
-
-class _AddEditNotePageState extends State<AddEditNotePage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    // Hanya isi controller jika sedang edit dan note tidak null
-    if (widget.isEditing && widget.note != null) {
-      _titleController.text = widget.note!.title;
-      _dateController.text = widget.note!.date;
-      _descriptionController.text = widget.note!.description;
+  AddEditNotePage({super.key, required this.isEditing, this.note}) {
+    if (isEditing && note != null) {
+      _titleController.text = note!.title;
+      _dateController.text = note!.date;
+      _descriptionController.text = note!.description;
     }
   }
 
-  void _saveNote(BuildContext context) {
-    Navigator.pop(context); 
-    showDialog(
-      context: context,
-      builder: (_) => SuccessDialog(
-        title: 'Note ${widget.isEditing ? 'updated' : 'saved'} successfully',
-        onConfirm: () {
-          Navigator.pop(context);
-        },
-      ),
-    );
-  }
+  Future<void> _saveNote(BuildContext context) async {
+    if (_titleController.text.trim().isEmpty || _dateController.text.trim().isEmpty) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Validation'),
+          content: const Text('Please fill title and date.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
-  void _confirmDeleteNote(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => ConfirmationDialog(
-        title: 'Are you sure want to delete note?',
-        icon: Icons.delete_forever,
-        onConfirm: () {
-          Navigator.pop(ctx);
-          Navigator.pop(context);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            showDialog(
-              context: context,
-              builder: (innerCtx) => SuccessDialog(
-                title: 'Note deleted successfully',
-                onConfirm: () {
-                  Navigator.pop(innerCtx);
-                },
-              ),
-            );
-          });
-        },
-      ),
-    );
+    if (isEditing && note != null) {
+      final updated = note!.copyWith(
+        title: _titleController.text.trim(),
+        date: _dateController.text.trim(),
+        description: _descriptionController.text.trim(),
+      );
+      Navigator.pop(context, updated);
+    } else {
+      final created = Note(
+        _titleController.text.trim(),
+        _dateController.text.trim(),
+        _descriptionController.text.trim(),
+      );
+      Navigator.pop(context, created);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Note', style: GoogleFonts.montserrat(fontWeight: FontWeight.bold, color: kAccentColor)),
+        title: Text(
+          isEditing ? 'Edit Note' : 'Add Note',
+          style: GoogleFonts.montserrat(fontWeight: FontWeight.bold, color: kAccentColor),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: kAccentColor),
           onPressed: () => Navigator.pop(context),
         ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: kAccentColor),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -97,7 +90,17 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
               TextFormField(
                 controller: _dateController,
                 readOnly: true,
-                decoration: _inputDecoration(suffixIcon: const Icon(Icons.calendar_today, color: kAccentColor)),
+                // gunakan CalendarPickerButton sebagai suffixIcon tanpa background
+                decoration: _inputDecoration(
+                  suffixIcon: CalendarPickerButton(
+                    initialDateString: _dateController.text.isEmpty ? null : _dateController.text,
+                    onDateSelected: (formatted) {
+                      _dateController.text = formatted;
+                    },
+                    size: 36,
+                    filled: false, // tanpa kotak biru di belakang ikon
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
 
@@ -110,7 +113,6 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
               ),
               const SizedBox(height: 40),
 
-              // Untuk mode editing dan add, sekarang hanya menampilkan tombol Save
               Align(
                 alignment: Alignment.centerRight,
                 child: SizedBox(
@@ -121,12 +123,9 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
                       backgroundColor: kAccentColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: Text('Save',
-                        style: GoogleFonts.montserrat(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    child: Text('Save', style: GoogleFonts.montserrat(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ),
@@ -134,11 +133,10 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
-  InputDecoration _inputDecoration({Icon? suffixIcon, bool isTextArea = false}) {
+  InputDecoration _inputDecoration({Widget? suffixIcon, bool isTextArea = false}) {
     return InputDecoration(
       filled: true,
       fillColor: kBackgroundColor,
@@ -146,33 +144,47 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
       suffixIcon: suffixIcon,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: kAccentColor, width: 1.5),
+        borderSide: BorderSide(color: kAccentColor, width: 1.5),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: kAccentColor, width: 1.5),
+        borderSide: BorderSide(color: kAccentColor, width: 1.5),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: kAccentColor, width: 2.0),
+        borderSide: BorderSide(color: kAccentColor, width: 2.0),
       ),
     );
   }
 
-  Widget _buildBottomNavBar() {
-    return Container(
-      height: 60,
-      decoration: const BoxDecoration(color: kAccentColor),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          Icon(Icons.home, color: Colors.white, size: 30),
-          Icon(Icons.access_time, color: Colors.white, size: 30),
-          Icon(Icons.bar_chart, color: Colors.white, size: 30),
-          Icon(Icons.music_note, color: Colors.white, size: 30),
-          Icon(Icons.person, color: Colors.white, size: 30),
-        ],
-      ),
-    );
+  String _getMonthName(int month) {
+    switch (month) {
+      case 1:
+        return 'January';
+      case 2:
+        return 'February';
+      case 3:
+        return 'March';
+      case 4:
+        return 'April';
+      case 5:
+        return 'May';
+      case 6:
+        return 'June';
+      case 7:
+        return 'July';
+      case 8:
+        return 'August';
+      case 9:
+        return 'September';
+      case 10:
+        return 'October';
+      case 11:
+        return 'November';
+      case 12:
+        return 'December';
+      default:
+        return '';
+    }
   }
 }

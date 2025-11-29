@@ -1,18 +1,17 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-// import 'package:studymate/screens/statistics_screen.dart';
 
-// Import Model
+// models
 import '../models/schedule.dart';
 import '../models/assignment.dart';
 import '../models/note.dart';
 
-// Import Utility
+// utils
 import '../utils/colors.dart';
 import '../utils/dialog_components.dart';
 
-// Import Pages
+// pages
 import 'add_edit_schedule_screen.dart';
 import 'add_edit_assignment_screen.dart';
 import 'add_edit_note_screen.dart';
@@ -24,8 +23,17 @@ import 'mood_screen.dart';
 import 'pomodoro_screen.dart';
 import 'profile_screen.dart';
 
+// widgets
+import '../widgets/header_tabs.dart';
+import '../widgets/schedule_tab.dart';
+import '../widgets/note_tab.dart';
+import '../widgets/assignment_tab.dart';
+import '../widgets/bottom_nav_bar.dart';
+import '../widgets/add_options_fab.dart';
+
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final int initialIndex;
+  const HomePage({super.key, this.initialIndex = 0});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -33,330 +41,245 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   // 0: Schedule, 1: Notes, 2: Assignment, 3: Statistics, 4: Mood, 5: Pomodoro, 6: Profile
-  int _selectedIndex = 0;
-  // 0: Unfinished, 1: Finished (untuk Assignment)
+  late int _selectedIndex;
   int _assignmentTabIndex = 0;
 
-  // Variabel untuk filter tanggal
+  // tanggal terpilih - format sesuai dengan schedule_tab
   String _selectedDate = '15 January 2025';
 
-  // State untuk menampilkan add options
+  // state add options
   bool _showAddOptions = false;
 
   // --- Data Dummy ---
   List<Schedule> schedules = [
-    Schedule('Grafika Komputer', '15 January 2025', '10.30 - 11.20',
-        'ILK3103 - A, 2 SKS'),
-    Schedule('Pemrograman Mobile', '15 January 2025', '10.30 - 11.20',
-        'ILK3103 - A, 2 SKS'),
-    Schedule('Struktur Data', '16 January 2025', '08.00 - 09.30',
-        'ILK2205 - B, 3 SKS'),
+    Schedule('Grafika Komputer', '15 January 2025', '10.30 - 11.20', 'ILK3103 - A, 2 SKS'),
+    Schedule('Pemrograman Mobile', '15 January 2025', '10.30 - 11.20', 'ILK3103 - A, 2 SKS'),
+    Schedule('Struktur Data', '16 January 2025', '08.00 - 09.30', 'ILK2205 - B, 3 SKS'),
   ];
   List<Assignment> assignments = [
     Assignment('Grafika Komputer - Primitive Drawing', '12 Jan 2025', '11.00',
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris quam orci, convallis nec enim eu, hendrerit imperdiet tortor. Nulla scelerisque posuere ullamcorper. Lorem ipsum dolor sit amet....',
-        isFinished: false),
+        'Lorem ipsum dolor sit amet...', isFinished: false),
     Assignment('Pemrograman Mobile - UI/UX', '14 Jan 2025', '14.00',
-        'Mauris quam orci, convallis nec enim eu, hendrerit imperdiet tortor.',
-        isFinished: false),
-    Assignment(
-        'Jaringan Komputer', '10 Jan 2025', '18.00', 'Tugas sudah selesai',
+        'Mauris quam orci...', isFinished: false),
+    Assignment('Jaringan Komputer', '10 Jan 2025', '18.00', 'Tugas sudah selesai',
         isFinished: true),
   ];
   List<Note> allNotes = [
-    Note('Grafika Komputer - Primitive Drawing', '15 Jan 2025',
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris quam orci, convallis nec enim eu, hendrerit imperdiet tortor. Nulla scelerisque posuere ullamcorper. Lorem ipsum dolor sit amet....'),
-    Note('Pemrograman Mobile - UI/UX', '16 Jan 2025',
-        'Catatan penting tentang lifecycle stateful widget dan provider management.'),
+    Note('Grafika Komputer - Primitive Drawing', '15 Jan 2025', 'Lorem ipsum dolor sit amet...'),
+    Note('Pemrograman Mobile - UI/UX', '16 Jan 2025', 'Catatan penting tentang lifecycle...'),
   ];
 
+  // untuk fitur pencarian
   List<Note> filteredNotes = [];
 
   @override
   void initState() {
     super.initState();
-    filteredNotes = allNotes;
+    _selectedIndex = widget.initialIndex;
+    filteredNotes = List.from(allNotes);
   }
 
-  // --- Fungsi Pencarian Note ---
+  // --- Utilities untuk notes/assignments/schedules --- //
   void _filterNotes(String query) {
-    final lowerCaseQuery = query.toLowerCase();
+    final lower = query.toLowerCase();
     setState(() {
-      filteredNotes = allNotes.where((note) {
-        return note.title.toLowerCase().contains(lowerCaseQuery) ||
-            note.description.toLowerCase().contains(lowerCaseQuery);
-      }).toList();
+      if (query.trim().isEmpty) {
+        filteredNotes = List.from(allNotes);
+      } else {
+        filteredNotes = allNotes.where((note) {
+          return note.title.toLowerCase().contains(lower) ||
+              note.description.toLowerCase().contains(lower);
+        }).toList();
+      }
     });
   }
 
-  // --- Fungsi untuk memilih tanggal ---
   void _selectDate(String date) {
     setState(() {
       _selectedDate = date;
     });
   }
 
-  // --- 1. Schedule Tab Widgets ---
-  Widget _buildScheduleTab() {
-    return Column(
-      children: [
-        // Header Hari
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('January',
-                  style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold, fontSize: 16)),
-              // Tombol Kalendar yang bisa diklik
-              GestureDetector(
-                onTap: _showCalendarDialog,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: kBackgroundColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.calendar_today,
-                      size: 20, color: kInkTone),
-                ),
+  // --- Schedule handlers ---
+  Future<void> _openScheduleDetail(Schedule schedule) async {
+    final result = await Navigator.push<dynamic>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailSchedulePage(
+          schedule: schedule,
+          onEdit: () async {
+            final res = await Navigator.push<dynamic>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AddEditSchedulePage(isEditing: true, schedule: schedule),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        // Baris Tanggal (Bisa diklik)
-        SizedBox(
-          height: 50,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            children: [
-              _buildDateItem('Mon', '14', '14 January 2025'),
-              _buildDateItem('Tue', '15', '15 January 2025'),
-              _buildDateItem('Wed', '16', '16 January 2025'),
-              _buildDateItem('Thu', '17', '17 January 2025'),
-              _buildDateItem('Fri', '18', '18 January 2025'),
-              _buildDateItem('Sat', '19', '19 January 2025'),
-              _buildDateItem('Sun', '20', '20 January 2025'),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        // Daftar Jadwal
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80),
-            itemCount:
-                schedules.where((s) => s.date.contains(_selectedDate)).length,
-            itemBuilder: (context, index) {
-              final schedule = schedules
-                  .where((s) => s.date.contains(_selectedDate))
-                  .toList()[index];
-              return _buildScheduleItem(schedule, index);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDateItem(String day, String date, String fullDate) {
-    bool isSelected = _selectedDate == fullDate;
-    return GestureDetector(
-      onTap: () => _selectDate(fullDate),
-      child: Container(
-        width: 50,
-        margin: const EdgeInsets.symmetric(horizontal: 5),
-        decoration: BoxDecoration(
-          color: isSelected ? kInkTone.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(day,
-                style: GoogleFonts.inter(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    fontSize: 12,
-                    color: isSelected ? kInkTone : Colors.grey[700])),
-            Text(date,
-                style: GoogleFonts.inter(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    decoration: isSelected
-                        ? TextDecoration.underline
-                        : TextDecoration.none,
-                    decorationColor: kInkTone)),
-          ],
+            );
+            return res;
+          },
+          onDelete: () {
+            _confirmDeleteSchedule(schedule);
+            return Future.value(null);
+          },
         ),
       ),
     );
-  }
 
-  // Fungsi untuk menampilkan dialog kalendar
-  void _showCalendarDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Select Date',
-              style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: CalendarDatePicker(
-              initialDate: DateTime(2025, 1, 15),
-              firstDate: DateTime(2020),
-              lastDate: DateTime(2030),
-              onDateChanged: (DateTime date) {
-                String formattedDate =
-                    '${date.day} ${_getMonthName(date.month)} ${date.year}';
-                setState(() {
-                  _selectedDate = formattedDate;
-                });
-                Navigator.pop(context);
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child:
-                  Text('Cancel', style: GoogleFonts.inter(color: kAccentColor)),
-            ),
-          ],
-        );
-      },
-    );
-  }
+    // if DetailSchedulePage returned something via edit/delete flow, handle here
+    if (result is Schedule) {
+      final idx = schedules.indexOf(schedule);
+      if (idx != -1) {
+        setState(() => schedules[idx] = result);
+      } else {
+        final fallbackIndex = schedules.indexWhere((s) =>
+            s.title == schedule.title && s.date == schedule.date && s.time == schedule.time);
+        if (fallbackIndex != -1) setState(() => schedules[fallbackIndex] = result);
+      }
+      showDialog(context: context, builder: (_) => const SuccessDialog(title: 'Schedule updated successfully'));
+    }
 
-  String _getMonthName(int month) {
-    switch (month) {
-      case 1:
-        return 'January';
-      case 2:
-        return 'February';
-      case 3:
-        return 'March';
-      case 4:
-        return 'April';
-      case 5:
-        return 'May';
-      case 6:
-        return 'June';
-      case 7:
-        return 'July';
-      case 8:
-        return 'August';
-      case 9:
-        return 'September';
-      case 10:
-        return 'October';
-      case 11:
-        return 'November';
-      case 12:
-        return 'December';
-      default:
-        return '';
+    if (result is Map && result['deleted'] == true) {
+      final idx = schedules.indexOf(schedule);
+      if (idx != -1) {
+        setState(() => schedules.removeAt(idx));
+      } else {
+        final fallbackIndex = schedules.indexWhere((s) =>
+            s.title == schedule.title && s.date == schedule.date && s.time == schedule.time);
+        if (fallbackIndex != -1) setState(() => schedules.removeAt(fallbackIndex));
+      }
     }
   }
 
-  Widget _buildScheduleItem(Schedule schedule, int index) {
-    return GestureDetector(
-      onTap: () {
-        // Navigasi ke halaman detail view
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DetailSchedulePage(
-              schedule: schedule,
-              onEdit: () {
-                // Callback untuk edit
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AddEditSchedulePage(
-                        isEditing: true, schedule: schedule),
-                  ),
-                ).then((_) {
-                  // Refresh data setelah edit
-                  setState(() {});
-                });
-              },
-              onDelete: () {
-                // Callback untuk delete
-                _confirmDeleteSchedule(index);
-              },
+  // --- Assignment handlers ---
+  // --- Assignment handlers ---
+Future<void> _openAssignmentDetail(Assignment assignment) async {
+  final result = await Navigator.push<dynamic>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => DetailAssignmentPage(
+        assignment: assignment,
+        onEdit: () async {
+          final res = await Navigator.push<Assignment?>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AddEditAssignmentPage(isEditing: true, assignment: assignment),
             ),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: kBackgroundColor,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: kInkTone.withOpacity(0.5)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.access_time, size: 20, color: kInkTone),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(schedule.time,
-                      style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 5),
-                  Text(schedule.title,
-                      style: GoogleFonts.inter(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(schedule.description,
-                      style: GoogleFonts.inter(fontSize: 14)),
-                ],
+          );
+          return res;
+        },
+        onDelete: () {
+          _confirmDeleteAssignment(assignment);
+          return Future.value(null);
+        },
+      ),
+    ),
+  );
+
+  if (result is Assignment) {
+    final idx = assignments.indexOf(assignment);
+    if (idx != -1) {
+      setState(() => assignments[idx] = result);
+    } else {
+      final fallbackIndex = assignments.indexWhere((a) =>
+          a.title == assignment.title && a.date == assignment.date && a.time == assignment.time);
+      if (fallbackIndex != -1) setState(() => assignments[fallbackIndex] = result);
+    }
+    showDialog(context: context, builder: (_) => const SuccessDialog(title: 'Assignment updated successfully'));
+  }
+
+  if (result is Map && result['deleted'] == true) {
+    final idx = assignments.indexOf(assignment);
+    if (idx != -1) {
+      setState(() => assignments.removeAt(idx));
+    } else {
+      final fallbackIndex = assignments.indexWhere((a) =>
+          a.title == assignment.title && a.date == assignment.date && a.time == assignment.time);
+      if (fallbackIndex != -1) setState(() => assignments.removeAt(fallbackIndex));
+    }
+  }
+}
+
+  // --- Note handlers ---
+  Future<void> _openNoteDetail(Note note) async {
+    final result = await Navigator.push<dynamic>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailNotePage(
+          note: note,
+          onEdit: () async {
+            final res = await Navigator.push<dynamic>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AddEditNotePage(isEditing: true, note: note),
               ),
-            ),
-          ],
+            );
+            return res;
+          },
+          onDelete: () {
+          _confirmDeleteNote(note);
+          return Future.value(null);
+        },
         ),
       ),
     );
+
+    // Handle updated note
+    if (result is Note) {
+      final idx = allNotes.indexOf(note);
+      if (idx != -1) {
+        setState(() {
+          allNotes[idx] = result;
+          _filterNotes('');
+        });
+      } else {
+        final fallbackIndex = allNotes.indexWhere((n) => n.title == note.title && n.date == note.date);
+        if (fallbackIndex != -1) {
+          setState(() {
+            allNotes[fallbackIndex] = result;
+            _filterNotes('');
+          });
+        }
+      }
+      showDialog(context: context, builder: (_) => const SuccessDialog(title: 'Note updated successfully'));
+    }
+
+    // Handle delete signal returned from AddEditNotePage
+    if (result is Map && result['deleted'] == true) {
+      final idx = allNotes.indexOf(note);
+      if (idx != -1) {
+        setState(() {
+          allNotes.removeAt(idx);
+          _filterNotes('');
+        });
+      } else {
+        final fallbackIndex = allNotes.indexWhere((n) => n.title == note.title && n.date == note.date);
+        if (fallbackIndex != -1) {
+          setState(() {
+            allNotes.removeAt(fallbackIndex);
+            _filterNotes('');
+          });
+        }
+      }
+    }
   }
 
-  void _confirmDeleteSchedule(int index) {
+  // --- Confirm delete routines ---
+  void _confirmDeleteSchedule(Schedule schedule) {
     showDialog(
       context: context,
       builder: (context) => ConfirmationDialog(
         title: 'Are you sure want to delete schedule?',
         icon: Icons.delete_forever,
         onConfirm: () {
-          // Tutup dialog konfirmasi terlebih dahulu
           Navigator.pop(context);
-
-          // Gunakan post frame callback untuk menghindari error navigator
           WidgetsBinding.instance.addPostFrameCallback((_) {
             setState(() {
-              schedules.removeAt(index);
+              schedules.remove(schedule);
             });
-
-            // Tampilkan success dialog setelah state diupdate
             showDialog(
               context: context,
               builder: (context) => SuccessDialog(
                 title: 'Schedule deleted successfully',
-                onConfirm: () {
-                  Navigator.pop(context);
-                },
+                onConfirm: () {},
               ),
             );
           });
@@ -365,354 +288,23 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- 2. Note Tab Widgets ---
-  Widget _buildNoteTab() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text('List Notes',
-                    style: GoogleFonts.inter(
-                        fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
-              Expanded(
-                flex: 3,
-                child: TextField(
-                  onChanged: _filterNotes,
-                  decoration: InputDecoration(
-                    hintText: 'Search Notes',
-                    hintStyle: GoogleFonts.inter(),
-                    prefixIcon: const Icon(Icons.search, color: kAccentColor),
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
-                    isDense: true,
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: kInkTone.withOpacity(0.5)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: kInkTone.withOpacity(0.5)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: kInkTone.withOpacity(0.5)),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80),
-            itemCount: filteredNotes.length,
-            itemBuilder: (context, index) {
-              return _buildNoteItem(filteredNotes[index], index);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNoteItem(Note note, int index) {
-    return GestureDetector(
-      onTap: () {
-        // Navigasi ke halaman detail view
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DetailNotePage(
-              note: note,
-              onEdit: () {
-                // Callback untuk edit
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        AddEditNotePage(isEditing: true, note: note),
-                  ),
-                ).then((_) {
-                  // Refresh data setelah edit
-                  setState(() {});
-                });
-              },
-              onDelete: () {
-                // Callback untuk delete
-                _confirmDeleteNote(note, index);
-              },
-            ),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: kBackgroundColor,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: kInkTone.withOpacity(0.5)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(note.title,
-                style: GoogleFonts.inter(
-                    fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 5),
-            Text(note.description,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(fontSize: 14)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmDeleteNote(Note note, int index) {
-    showDialog(
-      context: context,
-      builder: (context) => ConfirmationDialog(
-        title: 'Are you sure want to delete note?',
-        icon: Icons.delete_forever,
-        onConfirm: () {
-          // Tutup dialog konfirmasi terlebih dahulu
-          Navigator.pop(context);
-
-          // Gunakan post frame callback untuk menghindari error navigator
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              allNotes.remove(note);
-              _filterNotes('');
-            });
-
-            // Tampilkan success dialog setelah state diupdate
-            showDialog(
-              context: context,
-              builder: (context) => SuccessDialog(
-                title: 'Note deleted successfully',
-                onConfirm: () {
-                  Navigator.pop(context);
-                },
-              ),
-            );
-          });
-        },
-      ),
-    );
-  }
-
-  // --- 3. Assignment Tab Widgets ---
-  Widget _buildAssignmentTab() {
-    List<Assignment> filteredAssignments = _assignmentTabIndex == 0
-        ? assignments.where((a) => !a.isFinished).toList()
-        : assignments.where((a) => a.isFinished).toList();
-
-    return Column(
-      children: [
-        // Toggle Button Finished/Unfinished
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            children: [
-              _buildAssignmentTabButton(0, 'Unfinished'),
-              const SizedBox(width: 10),
-              _buildAssignmentTabButton(1, 'Finished'),
-            ],
-          ),
-        ),
-        // Daftar Tugas
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80),
-            itemCount: filteredAssignments.length,
-            itemBuilder: (context, index) {
-              final assignment = filteredAssignments[index];
-              final originalIndex = assignments.indexOf(assignment);
-              return _buildAssignmentItem(assignment, originalIndex);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAssignmentTabButton(int index, String title) {
-    bool isSelected = _assignmentTabIndex == index;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _assignmentTabIndex = index;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? kAccentColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kAccentColor.withOpacity(0.5)),
-        ),
-        child: Text(
-          title,
-          style: GoogleFonts.inter(
-            color: isSelected ? Colors.white : kAccentColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAssignmentItem(Assignment assignment, int index) {
-    bool isFinished = assignment.isFinished;
-    return GestureDetector(
-      onTap: () {
-        // Navigasi ke halaman detail view
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DetailAssignmentPage(
-              assignment: assignment,
-              onEdit: () {
-                // Callback untuk edit
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AddEditAssignmentPage(
-                        isEditing: true, assignment: assignment),
-                  ),
-                ).then((_) {
-                  // Refresh data setelah edit
-                  setState(() {});
-                });
-              },
-              onDelete: () {
-                // Callback untuk delete
-                _confirmDeleteAssignment(index);
-              },
-              onToggleStatus: () {
-                // Callback untuk toggle status
-                setState(() {
-                  assignment.toggleFinished();
-                });
-              },
-            ),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: kBackgroundColor,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: kInkTone.withOpacity(0.5)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time, size: 16, color: kInkTone),
-                      const SizedBox(width: 5),
-                      Text('${assignment.date}, ${assignment.time}',
-                          style: GoogleFonts.inter(
-                              fontSize: 12, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Text(assignment.title,
-                      style: GoogleFonts.inter(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(assignment.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(fontSize: 14)),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            // Ikon Ceklis/Reload
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  assignment.toggleFinished();
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isFinished ? Colors.white : kSuccessColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                      color: isFinished ? kSuccessColor : Colors.transparent),
-                ),
-                child: Icon(
-                  isFinished ? Icons.refresh : Icons.check,
-                  color: isFinished ? kSuccessColor : Colors.white,
-                  size: 20,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmDeleteAssignment(int index) {
+  void _confirmDeleteAssignment(Assignment assignment) {
     showDialog(
       context: context,
       builder: (context) => ConfirmationDialog(
         title: 'Are you sure want to delete assignment?',
         icon: Icons.delete_forever,
         onConfirm: () {
-          // Tutup dialog konfirmasi terlebih dahulu
           Navigator.pop(context);
-
-          // Gunakan post frame callback untuk menghindari error navigator
           WidgetsBinding.instance.addPostFrameCallback((_) {
             setState(() {
-              assignments.removeAt(index);
+              assignments.remove(assignment);
             });
-
-            // Tampilkan success dialog setelah state diupdate
             showDialog(
               context: context,
               builder: (context) => SuccessDialog(
                 title: 'Assignment deleted successfully',
-                onConfirm: () {
-                  Navigator.pop(context);
-                },
+                onConfirm: () {},
               ),
             );
           });
@@ -721,15 +313,59 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- Widget Utama ---
+  void _confirmDeleteNote(Note note) {
+    showDialog(
+      context: context,
+      builder: (context) => ConfirmationDialog(
+        title: 'Are you sure want to delete note?',
+        icon: Icons.delete_forever,
+        onConfirm: () {
+          Navigator.pop(context);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            setState(() {
+              allNotes.remove(note);
+              _filterNotes('');
+            });
+            showDialog(
+              context: context,
+              builder: (context) => SuccessDialog(
+                title: 'Note deleted successfully',
+                onConfirm: () {},
+              ),
+            );
+          });
+        },
+      ),
+    );
+  }
+
+  // toggle add options
+  void _toggleAddOptions() {
+    setState(() {
+      _showAddOptions = !_showAddOptions;
+    });
+  }
+
+  void _hideAddOptions() {
+    setState(() {
+      _showAddOptions = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     int totalTasks = assignments.where((a) => !a.isFinished).length;
 
+    // disable FAB pada tab tertentu (3..6)
+    final bool fabDisabled =
+        (_selectedIndex == 3 || _selectedIndex == 4 || _selectedIndex == 5 || _selectedIndex == 6);
+
     return Scaffold(
       backgroundColor: Colors.white,
-
-      appBar: (_selectedIndex == 3 || _selectedIndex == 4 || _selectedIndex == 5 || _selectedIndex == 6)
+      appBar: (_selectedIndex == 3 ||
+              _selectedIndex == 4 ||
+              _selectedIndex == 5 ||
+              _selectedIndex == 6)
           ? null
           : AppBar(
               backgroundColor: Colors.white,
@@ -774,40 +410,60 @@ class _HomePageState extends State<HomePage> {
         children: [
           Column(
             children: [
-              // Hanya tampilkan header tab bila index 0/1/2 (Schedule/Notes/Assignment)
               if (_selectedIndex == 0 || _selectedIndex == 1 || _selectedIndex == 2)
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      _buildHeaderTabButton(0, 'Schedule'),
-                      const SizedBox(width: 10),
-                      _buildHeaderTabButton(1, 'Notes'),
-                      const SizedBox(width: 10),
-                      _buildHeaderTabButton(2, 'Assignment'),
-                    ],
+                  child: HeaderTabs(
+                    selectedIndex: _selectedIndex,
+                    onTap: (index) {
+                      setState(() {
+                        _selectedIndex = index;
+                        if (index != 2) _assignmentTabIndex = 0;
+                        _showAddOptions = false;
+                      });
+                    },
                   ),
                 ),
-
-              // INDEXEDSTACK: render semua tab di sini, tapi tampilkan hanya index aktif
               Expanded(
                 child: IndexedStack(
                   index: _selectedIndex,
                   children: [
                     // Tab 0: Schedule
-                    _buildScheduleTab(),
+                    ScheduleTab(
+                      schedules: schedules,
+                      selectedDate: _selectedDate,
+                      onSelectDate: _selectDate,
+                      onTapSchedule: _openScheduleDetail,
+                    ),
 
                     // Tab 1: Notes
-                    _buildNoteTab(),
+                    NoteTab(
+                      notes: filteredNotes,
+                      onSearch: _filterNotes,
+                      onTapNote: (note) => _openNoteDetail(note),
+                    ),
 
                     // Tab 2: Assignment
-                    _buildAssignmentTab(),
+                    AssignmentTab(
+                      assignments: assignments,
+                      selectedSubTabIndex: _assignmentTabIndex,
+                      onSubTabChanged: (i) {
+                        setState(() => _assignmentTabIndex = i);
+                      },
+                      onTapAssignment: (assignment) => _openAssignmentDetail(assignment),
+                      onToggleStatus: (assignment) {
+                        setState(() {
+                          assignment.toggleFinished();
+                        });
+                      },
+                    ),
 
                     // Tab 3: Statistics
                     StatisticsScreen(
                       assignments: assignments,
                       weeklyStudyHours: [10, 25, 15, 20],
                     ),
+
                     // Tab 4: Mood / Music screen
                     const MoodScreen(),
 
@@ -822,223 +478,79 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
 
-          if (_showAddOptions && _selectedIndex != 5 && _selectedIndex != 6)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 60,
-              child: GestureDetector(
-                onTap: _hideAddOptions,
-                child: Container(
-                  color: Colors.black.withOpacity(0.3),
-                  width: double.infinity,
-                  height: double.infinity,
+          // AddOptionsFab menangani overlay + FAB + option buttons
+          AddOptionsFab(
+            showAddOptions: _showAddOptions,
+            onToggle: _toggleAddOptions,
+            onAddSchedule: () async {
+              _hideAddOptions();
+              final result = await Navigator.push<dynamic>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddEditSchedulePage(isEditing: false),
                 ),
-              ),
-            ),
+              );
 
-          if (_showAddOptions && _selectedIndex != 5 && _selectedIndex != 6)
-            Positioned(
-              right: 16,
-              bottom: 80,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  _buildAddOptionButton('Schedule', Icons.schedule, () {
-                    _hideAddOptions();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddEditSchedulePage(isEditing: false),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 10),
-                  _buildAddOptionButton('Note', Icons.note_add, () {
-                    _hideAddOptions();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddEditNotePage(isEditing: false),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 10),
-                  _buildAddOptionButton('Assignment', Icons.assignment, () {
-                    _hideAddOptions();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddEditAssignmentPage(isEditing: false),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
+              if (result is Schedule) {
+                setState(() {
+                  schedules.insert(0, result);
+                });
+                showDialog(
+                  context: context,
+                  builder: (context) => const SuccessDialog(title: 'Schedule saved successfully'),
+                );
+              }
+            },
+            onAddNote: () async {
+              _hideAddOptions();
+              final result = await Navigator.push<dynamic>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddEditNotePage(isEditing: false),
+                ),
+              );
+
+              if (result is Note) {
+                setState(() {
+                  allNotes.insert(0, result);
+                  _filterNotes('');
+                });
+                showDialog(
+                  context: context,
+                  builder: (context) => const SuccessDialog(title: 'Note saved successfully'),
+                );
+              }
+            },
+            onAddAssignment: () async {
+              _hideAddOptions();
+              final result = await Navigator.push<Assignment?>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AddEditAssignmentPage(isEditing: false),
+                ),
+              );
+              if (result is Assignment) {
+                setState(() {
+                  assignments.insert(0, result);
+                });
+                showDialog(
+                  context: context,
+                  builder: (context) => const SuccessDialog(title: 'Assignment saved successfully'),
+                );
+              }
+            },
+            disabled: fabDisabled,
+          ),
         ],
       ),
-      floatingActionButton: (_selectedIndex == 3 || _selectedIndex == 4 || _selectedIndex == 5 || _selectedIndex == 6)
-          ? null
-          : FloatingActionButton(
-              onPressed: () {
-                if (_showAddOptions)
-                  _hideAddOptions();
-                else
-                  _showAddOptionsFunc();
-              },
-              backgroundColor: kAccentColor,
-              shape: const CircleBorder(),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: _showAddOptions
-                    ? const Icon(Icons.close,
-                        color: Colors.white, size: 30, key: ValueKey('close'))
-                    : const Icon(Icons.add,
-                        color: Colors.white, size: 30, key: ValueKey('add')),
-              ),
-            ),
-      bottomNavigationBar: _buildBottomNavBar(),
-    );
-  }
-
-  void _showAddOptionsFunc() {
-    setState(() {
-      _showAddOptions = true;
-    });
-  }
-
-  void _hideAddOptions() {
-    setState(() {
-      _showAddOptions = false;
-    });
-  }
-
-  Widget _buildHeaderTabButton(int index, String title) {
-    bool isSelected = _selectedIndex == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
+      bottomNavigationBar: BottomNavBar(
+        selectedIndex: _selectedIndex,
+        onTapIndex: (idx) {
           setState(() {
-            _selectedIndex = index;
-            if (index != 2) {
-              _assignmentTabIndex = 0;
-            }
+            _selectedIndex = idx;
             _showAddOptions = false;
           });
         },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? kInkTone : Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: kInkTone.withOpacity(0.5)),
-          ),
-          child: Center(
-            child: Text(
-              title,
-              style: GoogleFonts.inter(
-                color: isSelected ? Colors.white : kInkTone,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavBar() {
-    // Fixed visible height for the app bottom nav (kept constant)
-    return SafeArea(
-      top: false,
-      bottom: true,
-      child: Container(
-        height: 60, // keep fixed height
-        color: kAccentColor,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedIndex = 0;
-                  _showAddOptions = false;
-                });
-              },
-              child: const Icon(Icons.home, color: Colors.white, size: 30),
-            ),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedIndex = 5; // Pomodoro
-                  _showAddOptions = false;
-                });
-              },
-              child: const Icon(Icons.access_time, color: Colors.white, size: 30),
-            ),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedIndex = 3;
-                  _showAddOptions = false;
-                });
-              },
-              child: const Icon(Icons.bar_chart, color: Colors.white, size: 30),
-            ),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedIndex = 4;
-                  _showAddOptions = false;
-                });
-              },
-              child: const Icon(Icons.music_note, color: Colors.white, size: 30),
-            ),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedIndex = 6;
-                  _showAddOptions = false;
-                });
-              },
-              child: const Icon(Icons.person, color: Colors.white, size: 30),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-
-  Widget _buildAddOptionButton(
-      String title, IconData icon, VoidCallback onPressed) {
-    return Material(
-      elevation: 4,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: kAccentColor),
-        ),
-        child: ElevatedButton.icon(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: kAccentColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-          ),
-          icon: Icon(icon, size: 20),
-          label: Text('+ $title',
-              style:
-                  GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
-        ),
       ),
     );
   }

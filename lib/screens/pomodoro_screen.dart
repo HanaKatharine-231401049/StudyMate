@@ -24,11 +24,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   // Dummy stats (only to compute "Focus Today" value)
   final List<double> _weeklyMinutes = [40, 60, 30, 90, 50, 80, 20];
 
-  // Strict mode 
+  // Strict mode
   bool _strictBlockNotifications = false;
   bool _strictBlockCalls = false;
 
-  // Set timer 
+  // Set timer
   int _shortBreakMinutes = 5;
   int _sessions = 4;
 
@@ -94,7 +94,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   }
 
   // ===== UI building blocks =====
-
   Widget _buildTopHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,13 +143,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
   }
 
-  Widget _buildTimerCard({required double cardWidth, required double circleBase}) {
+  Widget _buildTimerCard({required double cardWidth, required double circleBase, required double cardHeight}) {
     final double innerCircle = max(0.0, circleBase - 30);
     final double controlBtnSize = max(44.0, cardWidth * 0.13);
     final double playBtnPadding = max(16.0, cardWidth * 0.05);
-
-    // NOTE: cardHeight reduced to avoid overflow
-    final double cardHeight = 340.0;
 
     return Container(
       width: cardWidth,
@@ -372,7 +368,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   void _showStrictModeSheet() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // allow taller sheet
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -492,7 +488,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       ),
     );
 
-    // selalu rebuild parent agar SafeArea dan bottom nav dire-evaluasi
     if (result != null) {
       _timer?.cancel();
       setState(() {
@@ -501,11 +496,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         _duration = result['duration'] as Duration? ?? _duration;
       });
     } else {
-      // user mungkin menekan back system; tetap rebuild
       setState(() {});
     }
 
-    // jika sekarang running, pastikan timer berjalan
     if (_running) {
       _timer?.cancel();
       _timer = Timer.periodic(const Duration(seconds: 1), (t) {
@@ -520,7 +513,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       });
     }
   }
-  
+
   Future<void> _showSetTimerDialog() async {
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
@@ -553,7 +546,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         _sessions = (result['sessions'] as int?)?.clamp(1, 10) ?? _sessions;
       }
 
-      // reset timer display
       _resetTimer();
     });
 
@@ -570,43 +562,39 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final double screenWidth = MediaQuery.of(context).size.width;
-
     const double horizontalPadding = 16.0;
-    final double cardWidth = screenWidth - (horizontalPadding * 2);
-    final double circleBase = min(220.0, cardWidth * 0.68);
 
     return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16.0, 28.0, 16.0, 14.0),
-            child: _buildTopHeader(),
-          ),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final double screenWidth = constraints.maxWidth;
+        final double cardWidth = screenWidth - (horizontalPadding * 2);
+        // make cardHeight adaptive (max 420, min 260)
+        final double maxCardHeight = constraints.maxHeight * 0.55;
+        final double cardHeight = max(260.0, min(420.0, maxCardHeight));
+        final double circleBase = min(220.0, cardWidth * 0.68);
 
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 6.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTimerCard(cardWidth: cardWidth, circleBase: circleBase),
-
-                  const SizedBox(height: 12),
-
-                  _buildThreeOptionRow(cardWidth: cardWidth),
-
-                  const SizedBox(height: 12),
-
-                  _buildFocusToday(cardWidth: cardWidth),
-                  const SizedBox(height: 20),
-                ],
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 12.0, 0, 14.0),
+                child: _buildTopHeader(),
               ),
-            ),
+              _buildTimerCard(cardWidth: cardWidth, circleBase: circleBase, cardHeight: cardHeight),
+              const SizedBox(height: 12),
+              _buildThreeOptionRow(cardWidth: cardWidth),
+              const SizedBox(height: 12),
+              _buildFocusToday(cardWidth: cardWidth),
+              const SizedBox(height: 20),
+              // padding di akhir agar tidak berhenti tiba-tiba saat scroll
+              SizedBox(height: max(32.0, constraints.maxHeight * 0.05)),
+            ],
           ),
-        ],
-      ),
+        );
+      }),
     );
   }
 }
