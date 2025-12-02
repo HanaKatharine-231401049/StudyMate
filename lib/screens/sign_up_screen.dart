@@ -1,5 +1,11 @@
+// lib/sign_up_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'sign_in_screen.dart';
+import 'home_screen.dart';
+import '../services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -15,6 +21,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
+  bool _loading = false; // for regular sign up button
+  bool _loadingGoogle = false; // for google button
 
   void _togglePasswordVisibility() {
     setState(() {
@@ -34,26 +42,69 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  void _signUpWithGoogle() {
-    // TODO: Implement Google sign up
+  Future<void> _signUpWithGoogle() async {
+    setState(() => _loadingGoogle = true);
+
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      if (kDebugMode) print('Calling AuthService.signInWithGoogle() from SignUpScreen');
+      final String? error = await auth.signInWithGoogle();
+      if (kDebugMode) print('AuthService.signInWithGoogle returned: $error');
+
+      setState(() => _loadingGoogle = false);
+
+      if (error != null) {
+        _showErrorDialog(error);
+        return;
+      }
+
+      // sukses -> navigasi ke home
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        print('Exception in _signUpWithGoogle: $e\n$st');
+      }
+      setState(() => _loadingGoogle = false);
+      _showErrorDialog('Terjadi kesalahan saat Sign Up dengan Google.');
+    }
   }
 
-  void _signUp() {
+  Future<void> _signUp() async {
     // Validasi form
-    if (_emailController.text.isEmpty || 
-        _passwordController.text.isEmpty || 
-        _confirmPasswordController.text.isEmpty) {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirm = _confirmPasswordController.text;
+
+    if (email.isEmpty || password.isEmpty || confirm.isEmpty) {
       _showErrorDialog('Please fill all fields');
       return;
     }
 
-    if (_passwordController.text != _confirmPasswordController.text) {
+    if (password != confirm) {
       _showErrorDialog('Passwords do not match');
       return;
     }
 
     if (!_acceptTerms) {
       _showErrorDialog('Please accept the terms and privacy policy');
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    // derive a simple name from email local-part because your UI has no name field
+    final name = email.contains('@') ? email.split('@')[0] : email;
+
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final error = await auth.signUp(name: name, email: email, password: password);
+
+    setState(() => _loading = false);
+
+    if (error != null) {
+      _showErrorDialog(error);
       return;
     }
 
@@ -80,8 +131,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); 
-                _navigateToSignIn(context); 
+                Navigator.of(context).pop();
+                _navigateToSignIn(context);
               },
               child: const Text('OK'),
             ),
@@ -93,7 +144,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     // Auto navigate after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
-        Navigator.of(context).pop(); 
+        Navigator.of(context).pop();
         _navigateToSignIn(context);
       }
     });
@@ -124,6 +175,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -359,23 +418,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _acceptTerms ? _signUp : null,
+                  onPressed: (!_acceptTerms || _loading) ? null : _signUp,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF03045E),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    disabledBackgroundColor: Colors.grey[400],
+                    disabledBackgroundColor: Colors.grey, // keep visual similar
                   ),
-                  child: Text(
-                    'Sign Up',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Inter',
-                    ),
-                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          'Sign Up',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -411,7 +476,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   width: 108,
                   height: 56,
                   child: OutlinedButton(
-                    onPressed: _signUpWithGoogle,
+                    onPressed: _loadingGoogle ? null : _signUpWithGoogle,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.black,
                       side: const BorderSide(color: Color(0xFFD8DADC)),
@@ -419,19 +484,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: Image.asset(
-                      'assets/images/google_icon.png',
-                      width: 20,
-                      height: 20,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          Icons.account_circle,
-                          size: 20,
-                          color: Colors.grey,
-                        );
-                      },
-                    ),
+                    child: _loadingGoogle
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Image.asset(
+                            'assets/images/google_icon.png',
+                            width: 20,
+                            height: 20,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.account_circle,
+                                size: 20,
+                                color: Colors.grey,
+                              );
+                            },
+                          ),
                   ),
                 ),
               ),
@@ -473,13 +544,5 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
   }
 }

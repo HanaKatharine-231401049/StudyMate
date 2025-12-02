@@ -1,3 +1,16 @@
+// android/build.gradle (top-level)
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // Android Gradle Plugin biasanya dikelola oleh Flutter Gradle plugin,
+        // tetapi tambahkan google-services classpath agar plugin google-services tersedia.
+        classpath 'com.google.gms:google-services:4.3.15'
+    }
+}
+
 allprojects {
     repositories {
         google()
