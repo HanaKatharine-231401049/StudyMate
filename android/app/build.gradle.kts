@@ -1,3 +1,4 @@
+// android/app/build.gradle.kts
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -42,3 +43,8 @@ android {
 flutter {
     source = "../.."
 }
+
+// ----- IMPORTANT -----
+// Apply the Google Services Gradle plugin so the google-services.json is processed.
+// For Kotlin DSL, use 'apply' at the bottom.
+apply(plugin = "com.google.gms.google-services")

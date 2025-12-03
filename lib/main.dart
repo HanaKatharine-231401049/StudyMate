@@ -2,13 +2,30 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_core/firebase_core.dart';
+
 import 'screens/splash_screen.dart';
 import 'providers/theme_provider.dart';
+import 'services/auth_service.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(initialMode: ThemeMode.light),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => ThemeProvider(initialMode: ThemeMode.light),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AuthService(),
+        ),
+      ],
       child: const MyApp(),
     ),
   );
@@ -25,6 +42,7 @@ class MyApp extends StatelessWidget {
       title: 'StudyMate',
       debugShowCheckedModeBanner: false,
       themeMode: themeProvider.mode, // dikontrol oleh ThemeProvider
+
       // Light theme
       theme: ThemeData(
         brightness: Brightness.light,
@@ -46,6 +64,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Inter',
         useMaterial3: false,
       ),
+
       // Dark theme
       darkTheme: ThemeData(
         brightness: Brightness.dark,
@@ -63,10 +82,14 @@ class MyApp extends StatelessWidget {
         ),
         textTheme: GoogleFonts.interTextTheme(
           Theme.of(context).textTheme,
-        ).apply(bodyColor: Colors.white, displayColor: Colors.white),
+        ).apply(
+          bodyColor: Colors.white,
+          displayColor: Colors.white,
+        ),
         fontFamily: 'Inter',
         useMaterial3: false,
       ),
+
       home: const SplashScreen(),
     );
   }

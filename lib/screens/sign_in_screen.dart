@@ -1,8 +1,11 @@
 // lib/sign_in_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'sign_up_screen.dart';
 import 'home_screen.dart';
 import 'forgot_password_screen.dart';
+import '../services/auth_service.dart'; // <- added
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -15,6 +18,7 @@ class _SignInScreenState extends State<SignInScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _loading = false; // <- added
 
   void _togglePasswordVisibility() {
     setState(() {
@@ -39,14 +43,28 @@ class _SignInScreenState extends State<SignInScreen> {
     // TODO: Implement Google sign in
   }
 
-  void _signIn() {
+  Future<void> _signIn() async {
     // Validasi form
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
       _showErrorDialog('Please fill all fields');
       return;
     }
 
-    // TODO: Implement sign in logic
+    setState(() => _loading = true);
+
+    // Panggil AuthService (via Provider)
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final error = await auth.signIn(email: email, password: password);
+
+    setState(() => _loading = false);
+
+    if (error != null) {
+      _showErrorDialog(error);
+      return;
+    }
 
     // Setelah sign in berhasil, arahkan ke HomeScreen
     Navigator.of(context).pushReplacement(
@@ -249,7 +267,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _signIn,
+                  onPressed: _loading ? null : _signIn,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF03045E),
                     foregroundColor: Colors.white,
@@ -257,14 +275,20 @@ class _SignInScreenState extends State<SignInScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text(
-                    'Sign In',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Inter',
-                    ),
-                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text(
+                          'Sign In',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 32),
