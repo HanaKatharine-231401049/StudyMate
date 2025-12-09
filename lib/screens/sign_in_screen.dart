@@ -1,4 +1,5 @@
 // lib/sign_in_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -39,8 +40,37 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
-  void _signInWithGoogle() {
-    // TODO: Implement Google sign in
+  Future<void> _signInWithGoogle() async {
+    setState(() => _loading = true);
+
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final String? error = await auth.signInWithGoogle();
+
+      if (!mounted) return;
+
+      setState(() => _loading = false);
+
+      if (error != null) {
+        _showErrorDialog(error);
+        return;
+      }
+
+      // sukses - pindah ke Home
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('Unexpected error in _signInWithGoogle: $e\n$st');
+      }
+      if (mounted) {
+        setState(() => _loading = false);
+        _showErrorDialog('Terjadi kesalahan saat mencoba masuk dengan Google.');
+      }
+    }
   }
 
   Future<void> _signIn() async {
@@ -55,21 +85,33 @@ class _SignInScreenState extends State<SignInScreen> {
 
     setState(() => _loading = true);
 
-    // Panggil AuthService (via Provider)
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final error = await auth.signIn(email: email, password: password);
+    try {
+      // Panggil AuthService (via Provider)
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final error = await auth.signIn(email: email, password: password);
 
-    setState(() => _loading = false);
+      if (!mounted) return;
 
-    if (error != null) {
-      _showErrorDialog(error);
-      return;
+      setState(() => _loading = false);
+
+      if (error != null) {
+        _showErrorDialog(error);
+        return;
+      }
+
+      // Setelah sign in berhasil, arahkan ke HomeScreen
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('Unexpected error in _signIn: $e\n$st');
+      }
+      if (mounted) setState(() => _loading = false);
+      _showErrorDialog('Terjadi kesalahan saat proses sign in.');
     }
-
-    // Setelah sign in berhasil, arahkan ke HomeScreen
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const HomePage()),
-    );
   }
 
   void _showErrorDialog(String message) {
@@ -97,6 +139,9 @@ class _SignInScreenState extends State<SignInScreen> {
         );
       },
     );
+    if (kDebugMode) {
+      debugPrint('Sign-in error: $message');
+    }
   }
 
   @override
@@ -129,9 +174,9 @@ class _SignInScreenState extends State<SignInScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   // Tulisan Sign In
-                  Text(
+                  const Text(
                     'Sign In',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w600,
                       fontFamily: 'Poppins',
@@ -324,7 +369,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   width: 108,
                   height: 56,
                   child: OutlinedButton(
-                    onPressed: _signInWithGoogle,
+                    onPressed: _loading ? null : _signInWithGoogle,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.black,
                       side: const BorderSide(color: Color(0xFFD8DADC)),
@@ -332,19 +377,25 @@ class _SignInScreenState extends State<SignInScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: Image.asset(
-                      'assets/images/google_icon.png',
-                      width: 20,
-                      height: 20,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          Icons.account_circle,
-                          size: 20,
-                          color: Colors.grey[600],
-                        );
-                      },
-                    ),
+                    child: _loading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Image.asset(
+                            'assets/images/google_icon.png',
+                            width: 20,
+                            height: 20,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.account_circle,
+                                size: 20,
+                                color: Colors.grey[600],
+                              );
+                            },
+                          ),
                   ),
                 ),
               ),
