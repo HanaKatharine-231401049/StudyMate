@@ -1,16 +1,21 @@
-// android/build.gradle (top-level)
+// android/build.gradle.kts (use this exact content)
+
 buildscript {
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        // Android Gradle Plugin biasanya dikelola oleh Flutter Gradle plugin,
-        // tetapi tambahkan google-services classpath agar plugin google-services tersedia.
-        classpath 'com.google.gms:google-services:4.3.15'
+        // Kotlin DSL: use function call with double quotes
+        classpath("com.google.gms:google-services:4.3.15")
     }
 }
 
+plugins {
+    // keep this empty for Flutter root; Flutter plugin is applied in app module
+}
+
+// repositories for all projects
 allprojects {
     repositories {
         google()
@@ -18,6 +23,7 @@ allprojects {
     }
 }
 
+// move build outputs out of android folder (optional Flutter optimization)
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
         .dir("../../build")
@@ -28,10 +34,13 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+
+// ensure app module is evaluated
 subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// clean task
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
