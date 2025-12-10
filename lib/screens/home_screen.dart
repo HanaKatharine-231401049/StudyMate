@@ -1,6 +1,13 @@
-// lib/screens/home_screen.dart
+// lib/screens/home_screen.dart - UPDATE BAGIAN IMPORT
+// tambahkan ini di bagian import paling atas
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+
+// services
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 
 // models
 import '../models/schedule.dart';
@@ -50,33 +57,71 @@ class _HomePageState extends State<HomePage> {
   // state add options
   bool _showAddOptions = false;
 
-  // --- Data Dummy ---
-  List<Schedule> schedules = [
-    Schedule('Grafika Komputer', '15 January 2025', '10.30 - 11.20', 'ILK3103 - A, 2 SKS'),
-    Schedule('Pemrograman Mobile', '15 January 2025', '10.30 - 11.20', 'ILK3103 - A, 2 SKS'),
-    Schedule('Struktur Data', '16 January 2025', '08.00 - 09.30', 'ILK2205 - B, 3 SKS'),
-  ];
-  List<Assignment> assignments = [
-    Assignment('Grafika Komputer - Primitive Drawing', '12 Jan 2025', '11.00',
-        'Lorem ipsum dolor sit amet...', isFinished: false),
-    Assignment('Pemrograman Mobile - UI/UX', '14 Jan 2025', '14.00',
-        'Mauris quam orci...', isFinished: false),
-    Assignment('Jaringan Komputer', '10 Jan 2025', '18.00', 'Tugas sudah selesai',
-        isFinished: true),
-  ];
-  List<Note> allNotes = [
-    Note('Grafika Komputer - Primitive Drawing', '15 Jan 2025', 'Lorem ipsum dolor sit amet...'),
-    Note('Pemrograman Mobile - UI/UX', '16 Jan 2025', 'Catatan penting tentang lifecycle...'),
-  ];
-
-  // untuk fitur pencarian
+  // --- Data dari Firebase ---
+  List<Schedule> schedules = [];
+  List<Assignment> assignments = [];
+  List<Note> allNotes = [];
   List<Note> filteredNotes = [];
+
+  // User name untuk display
+  String _userName = 'User';
+
+  // Stream subscriptions
+  late StreamSubscription<List<Schedule>> _scheduleSubscription;
+  late StreamSubscription<List<Assignment>> _assignmentSubscription;
+  late StreamSubscription<List<Note>> _noteSubscription;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
-    filteredNotes = List.from(allNotes);
+    _loadUserData();
+    _setupFirebaseListeners();
+  }
+
+  @override
+  void dispose() {
+    _scheduleSubscription.cancel();
+    _assignmentSubscription.cancel();
+    _noteSubscription.cancel();
+    super.dispose();
+  }
+
+  void _loadUserData() {
+    final authService = AuthService();
+    _userName = authService.currentUser?.displayName ?? 'User';
+  }
+
+  void _setupFirebaseListeners() {
+    final firestoreService = FirestoreService();
+    
+    // Listen to schedules
+    _scheduleSubscription = firestoreService.getSchedulesByDate(_selectedDate).listen((schedulesList) {
+      if (mounted) {
+        setState(() {
+          schedules = schedulesList;
+        });
+      }
+    });
+
+    // Listen to all assignments
+    _assignmentSubscription = firestoreService.getAssignmentsStream().listen((assignmentsList) {
+      if (mounted) {
+        setState(() {
+          assignments = assignmentsList;
+        });
+      }
+    });
+
+    // Listen to notes
+    _noteSubscription = firestoreService.getNotesStream().listen((notesList) {
+      if (mounted) {
+        setState(() {
+          allNotes = notesList;
+          filteredNotes = List.from(allNotes);
+        });
+      }
+    });
   }
 
   // --- Utilities untuk notes/assignments/schedules --- //
@@ -97,6 +142,16 @@ class _HomePageState extends State<HomePage> {
   void _selectDate(String date) {
     setState(() {
       _selectedDate = date;
+      // Refresh schedules untuk date baru
+      final firestoreService = FirestoreService();
+      _scheduleSubscription.cancel();
+      _scheduleSubscription = firestoreService.getSchedulesByDate(date).listen((schedulesList) {
+        if (mounted) {
+          setState(() {
+            schedules = schedulesList;
+          });
+        }
+      });
     });
   }
 
@@ -114,89 +169,91 @@ class _HomePageState extends State<HomePage> {
                 builder: (_) => AddEditSchedulePage(isEditing: true, schedule: schedule),
               ),
             );
-            return res;
+            if (res is Schedule) {
+              // Update di Firebase
+              final firestoreService = FirestoreService();
+              await firestoreService.updateSchedule(res);
+              return res;
+            }
+            return null;
           },
-          onDelete: () {
-            _confirmDeleteSchedule(schedule);
-            return Future.value(null);
+          onDelete: () async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (context) => ConfirmationDialog(
+                title: 'Are you sure want to delete schedule?',
+                icon: Icons.delete_forever,
+                onConfirm: () => Navigator.pop(context, true),
+                onCancel: () => Navigator.pop(context, false),
+              ),
+            );
+            
+            if (confirmed == true) {
+              final firestoreService = FirestoreService();
+              await firestoreService.deleteSchedule(schedule.id!);
+              return true;
+            }
+            return false;
           },
         ),
       ),
     );
 
-    // if DetailSchedulePage returned something via edit/delete flow, handle here
-    if (result is Schedule) {
-      final idx = schedules.indexOf(schedule);
-      if (idx != -1) {
-        setState(() => schedules[idx] = result);
-      } else {
-        final fallbackIndex = schedules.indexWhere((s) =>
-            s.title == schedule.title && s.date == schedule.date && s.time == schedule.time);
-        if (fallbackIndex != -1) setState(() => schedules[fallbackIndex] = result);
-      }
-      showDialog(context: context, builder: (_) => const SuccessDialog(title: 'Schedule updated successfully'));
+    if (result is Map && result['deleted'] == true) {
+      // Success dialog akan ditampilkan dari detail page
+      return;
     }
+  }
+
+  // --- Assignment handlers ---
+  Future<void> _openAssignmentDetail(Assignment assignment) async {
+    final result = await Navigator.push<dynamic>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailAssignmentPage(
+          assignment: assignment,
+          onEdit: () async {
+            final res = await Navigator.push<Assignment?>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AddEditAssignmentPage(isEditing: true, assignment: assignment),
+              ),
+            );
+            if (res is Assignment) {
+              // Update di Firebase
+              final firestoreService = FirestoreService();
+              await firestoreService.updateAssignment(res);
+              return res;
+            }
+            return null;
+          },
+          onDelete: () async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (context) => ConfirmationDialog(
+                title: 'Are you sure want to delete assignment?',
+                icon: Icons.delete_forever,
+                onConfirm: () => Navigator.pop(context, true),
+                onCancel: () => Navigator.pop(context, false),
+              ),
+            );
+            
+            if (confirmed == true) {
+              final firestoreService = FirestoreService();
+              await firestoreService.deleteAssignment(assignment.id!);
+              return true;
+            }
+            return false;
+          },
+        ),
+      ),
+    );
 
     if (result is Map && result['deleted'] == true) {
-      final idx = schedules.indexOf(schedule);
-      if (idx != -1) {
-        setState(() => schedules.removeAt(idx));
-      } else {
-        final fallbackIndex = schedules.indexWhere((s) =>
-            s.title == schedule.title && s.date == schedule.date && s.time == schedule.time);
-        if (fallbackIndex != -1) setState(() => schedules.removeAt(fallbackIndex));
-      }
+      // Success dialog akan ditampilkan dari detail page
+      return;
     }
   }
-
-  // --- Assignment handlers ---
-  // --- Assignment handlers ---
-Future<void> _openAssignmentDetail(Assignment assignment) async {
-  final result = await Navigator.push<dynamic>(
-    context,
-    MaterialPageRoute(
-      builder: (_) => DetailAssignmentPage(
-        assignment: assignment,
-        onEdit: () async {
-          final res = await Navigator.push<Assignment?>(
-            context,
-            MaterialPageRoute(
-              builder: (_) => AddEditAssignmentPage(isEditing: true, assignment: assignment),
-            ),
-          );
-          return res;
-        },
-        onDelete: () {
-          _confirmDeleteAssignment(assignment);
-          return Future.value(null);
-        },
-      ),
-    ),
-  );
-
-  if (result is Assignment) {
-    final idx = assignments.indexOf(assignment);
-    if (idx != -1) {
-      setState(() => assignments[idx] = result);
-    } else {
-      final fallbackIndex = assignments.indexWhere((a) =>
-          a.title == assignment.title && a.date == assignment.date && a.time == assignment.time);
-      if (fallbackIndex != -1) setState(() => assignments[fallbackIndex] = result);
-    }
-    showDialog(context: context, builder: (_) => const SuccessDialog(title: 'Assignment updated successfully'));
-  }
-
-  if (result is Map && result['deleted'] == true) {
-    final idx = assignments.indexOf(assignment);
-    if (idx != -1) {
-      setState(() => assignments.removeAt(idx));
-    } else {
-      final fallbackIndex = assignments.indexWhere((a) =>
-          a.title == assignment.title && a.date == assignment.date && a.time == assignment.time);
-      if (fallbackIndex != -1) setState(() => assignments.removeAt(fallbackIndex));
-    }
-  }
-}
 
   // --- Note handlers ---
   Future<void> _openNoteDetail(Note note) async {
@@ -212,131 +269,40 @@ Future<void> _openAssignmentDetail(Assignment assignment) async {
                 builder: (_) => AddEditNotePage(isEditing: true, note: note),
               ),
             );
-            return res;
+            if (res is Note) {
+              // Update di Firebase
+              final firestoreService = FirestoreService();
+              await firestoreService.updateNote(res);
+              return res;
+            }
+            return null;
           },
-          onDelete: () {
-          _confirmDeleteNote(note);
-          return Future.value(null);
-        },
+          onDelete: () async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (context) => ConfirmationDialog(
+                title: 'Are you sure want to delete note?',
+                icon: Icons.delete_forever,
+                onConfirm: () => Navigator.pop(context, true),
+                onCancel: () => Navigator.pop(context, false),
+              ),
+            );
+            
+            if (confirmed == true) {
+              final firestoreService = FirestoreService();
+              await firestoreService.deleteNote(note.id!);
+              return true;
+            }
+            return false;
+          },
         ),
       ),
     );
 
-    // Handle updated note
-    if (result is Note) {
-      final idx = allNotes.indexOf(note);
-      if (idx != -1) {
-        setState(() {
-          allNotes[idx] = result;
-          _filterNotes('');
-        });
-      } else {
-        final fallbackIndex = allNotes.indexWhere((n) => n.title == note.title && n.date == note.date);
-        if (fallbackIndex != -1) {
-          setState(() {
-            allNotes[fallbackIndex] = result;
-            _filterNotes('');
-          });
-        }
-      }
-      showDialog(context: context, builder: (_) => const SuccessDialog(title: 'Note updated successfully'));
-    }
-
-    // Handle delete signal returned from AddEditNotePage
     if (result is Map && result['deleted'] == true) {
-      final idx = allNotes.indexOf(note);
-      if (idx != -1) {
-        setState(() {
-          allNotes.removeAt(idx);
-          _filterNotes('');
-        });
-      } else {
-        final fallbackIndex = allNotes.indexWhere((n) => n.title == note.title && n.date == note.date);
-        if (fallbackIndex != -1) {
-          setState(() {
-            allNotes.removeAt(fallbackIndex);
-            _filterNotes('');
-          });
-        }
-      }
+      // Success dialog akan ditampilkan dari detail page
+      return;
     }
-  }
-
-  // --- Confirm delete routines ---
-  void _confirmDeleteSchedule(Schedule schedule) {
-    showDialog(
-      context: context,
-      builder: (context) => ConfirmationDialog(
-        title: 'Are you sure want to delete schedule?',
-        icon: Icons.delete_forever,
-        onConfirm: () {
-          Navigator.pop(context);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              schedules.remove(schedule);
-            });
-            showDialog(
-              context: context,
-              builder: (context) => SuccessDialog(
-                title: 'Schedule deleted successfully',
-                onConfirm: () {},
-              ),
-            );
-          });
-        },
-      ),
-    );
-  }
-
-  void _confirmDeleteAssignment(Assignment assignment) {
-    showDialog(
-      context: context,
-      builder: (context) => ConfirmationDialog(
-        title: 'Are you sure want to delete assignment?',
-        icon: Icons.delete_forever,
-        onConfirm: () {
-          Navigator.pop(context);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              assignments.remove(assignment);
-            });
-            showDialog(
-              context: context,
-              builder: (context) => SuccessDialog(
-                title: 'Assignment deleted successfully',
-                onConfirm: () {},
-              ),
-            );
-          });
-        },
-      ),
-    );
-  }
-
-  void _confirmDeleteNote(Note note) {
-    showDialog(
-      context: context,
-      builder: (context) => ConfirmationDialog(
-        title: 'Are you sure want to delete note?',
-        icon: Icons.delete_forever,
-        onConfirm: () {
-          Navigator.pop(context);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              allNotes.remove(note);
-              _filterNotes('');
-            });
-            showDialog(
-              context: context,
-              builder: (context) => SuccessDialog(
-                title: 'Note deleted successfully',
-                onConfirm: () {},
-              ),
-            );
-          });
-        },
-      ),
-    );
   }
 
   // toggle add options
@@ -376,7 +342,7 @@ Future<void> _openAssignmentDetail(Assignment assignment) async {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const SizedBox(height: 8),
-                  Text('Hello Mark',
+                  Text('Hello $_userName', // DIUBAH: Gunakan nama dari Firebase
                       style: GoogleFonts.montserrat(
                           fontSize: 18, fontWeight: FontWeight.normal)),
                   const SizedBox(height: 4),
@@ -430,7 +396,7 @@ Future<void> _openAssignmentDetail(Assignment assignment) async {
                   children: [
                     // Tab 0: Schedule
                     ScheduleTab(
-                      schedules: schedules,
+                      schedules: schedules.where((s) => s.date.contains(_selectedDate)).toList(),
                       selectedDate: _selectedDate,
                       onSelectDate: _selectDate,
                       onTapSchedule: _openScheduleDetail,
@@ -451,14 +417,16 @@ Future<void> _openAssignmentDetail(Assignment assignment) async {
                         setState(() => _assignmentTabIndex = i);
                       },
                       onTapAssignment: (assignment) => _openAssignmentDetail(assignment),
-                      onToggleStatus: (assignment) {
-                        setState(() {
-                          assignment.toggleFinished();
-                        });
+                      onToggleStatus: (assignment) async {
+                        final firestoreService = FirestoreService();
+                        await firestoreService.toggleAssignmentCompletion(
+                          assignment.id!,
+                          assignment.isFinished,
+                        );
                       },
                     ),
 
-                    // Tab 3: Statistics
+                    // Tab 3: Statistics (tidak diubah)
                     StatisticsScreen(
                       assignments: assignments,
                       weeklyStudyHours: [10, 25, 15, 20],
@@ -492,12 +460,12 @@ Future<void> _openAssignmentDetail(Assignment assignment) async {
               );
 
               if (result is Schedule) {
-                setState(() {
-                  schedules.insert(0, result);
-                });
+                final firestoreService = FirestoreService();
+                final savedSchedule = await firestoreService.addSchedule(result);
+                
                 showDialog(
                   context: context,
-                  builder: (context) => const SuccessDialog(title: 'Schedule saved successfully'),
+                  builder: (context) => SuccessDialog(title: 'Schedule saved successfully'),
                 );
               }
             },
@@ -511,10 +479,9 @@ Future<void> _openAssignmentDetail(Assignment assignment) async {
               );
 
               if (result is Note) {
-                setState(() {
-                  allNotes.insert(0, result);
-                  _filterNotes('');
-                });
+                final firestoreService = FirestoreService();
+                final savedNote = await firestoreService.addNote(result);
+                
                 showDialog(
                   context: context,
                   builder: (context) => const SuccessDialog(title: 'Note saved successfully'),
@@ -530,9 +497,9 @@ Future<void> _openAssignmentDetail(Assignment assignment) async {
                 ),
               );
               if (result is Assignment) {
-                setState(() {
-                  assignments.insert(0, result);
-                });
+                final firestoreService = FirestoreService();
+                final savedAssignment = await firestoreService.addAssignment(result);
+                
                 showDialog(
                   context: context,
                   builder: (context) => const SuccessDialog(title: 'Assignment saved successfully'),
