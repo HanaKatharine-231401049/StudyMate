@@ -394,7 +394,7 @@ Future<void> _openAssignmentDetail(Assignment assignment) async {
               actions: [
                 Padding(
                   padding: const EdgeInsets.only(right: 16.0, top: 20),
-                  child: Container(
+                  child: Container(           
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
