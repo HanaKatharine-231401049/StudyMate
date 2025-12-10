@@ -20,40 +20,46 @@ class AddEditNotePage extends StatelessWidget {
     }
   }
 
-  Future<void> _saveNote(BuildContext context) async {
-    if (_titleController.text.trim().isEmpty || _dateController.text.trim().isEmpty) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Validation'),
-          content: const Text('Please fill title and date.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+  // Dalam method _saveNote, ganti dengan:
 
-    if (isEditing && note != null) {
-      final updated = note!.copyWith(
-        title: _titleController.text.trim(),
-        date: _dateController.text.trim(),
-        description: _descriptionController.text.trim(),
-      );
-      Navigator.pop(context, updated);
-    } else {
-      final created = Note(
-        _titleController.text.trim(),
-        _dateController.text.trim(),
-        _descriptionController.text.trim(),
-      );
-      Navigator.pop(context, created);
-    }
+Future<void> _saveNote(BuildContext context) async {
+  if (_titleController.text.trim().isEmpty || _dateController.text.trim().isEmpty) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Validation'),
+        content: const Text('Please fill title and date.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    return;
   }
+
+  if (isEditing && note != null) {
+    final updated = note!.copyWith(
+      title: _titleController.text.trim(),
+      date: _dateController.text.trim(),
+      description: _descriptionController.text.trim(),
+      updatedAt: DateTime.now(),
+    );
+    Navigator.pop(context, updated);
+  } else {
+    final created = Note(
+      userId: '', // Akan diisi oleh HomeScreen
+      title: _titleController.text.trim(),
+      date: _dateController.text.trim(),
+      description: _descriptionController.text.trim(),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    Navigator.pop(context, created);
+  }
+}
 
   @override
   Widget build(BuildContext context) {

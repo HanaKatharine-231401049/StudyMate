@@ -26,45 +26,51 @@ class AddEditAssignmentPage extends StatelessWidget {
     final descriptionController = TextEditingController(
         text: isEditing && assignment != null ? assignment!.description : '');
 
-    Future<void> _saveAssignment() async {
-      // sederhana: cek required
-      if (titleController.text.trim().isEmpty ||
-          dateController.text.trim().isEmpty ||
-          timeController.text.trim().isEmpty) {
-        // show simple error
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Validation'),
-            content: const Text('Please fill title, date and time.'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-            ],
-          ),
-        );
-        return;
-      }
+    // Dalam method _saveAssignment, ganti dengan:
 
-      if (isEditing && assignment != null) {
-        // buat object baru dengan perubahan -> kembalikan updated Assignment
-        final updated = assignment!.copyWith(
-          title: titleController.text.trim(),
-          date: dateController.text.trim(),
-          time: timeController.text.trim(),
-          description: descriptionController.text.trim(),
-        );
-        Navigator.pop(context, updated);
-      } else {
-        final created = Assignment(
-          titleController.text.trim(),
-          dateController.text.trim(),
-          timeController.text.trim(),
-          descriptionController.text.trim(),
-          isFinished: false,
-        );
-        Navigator.pop(context, created);
-      }
-    }
+Future<void> _saveAssignment() async {
+  // sederhana: cek required
+  if (titleController.text.trim().isEmpty ||
+      dateController.text.trim().isEmpty ||
+      timeController.text.trim().isEmpty) {
+    // show simple error
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Validation'),
+        content: const Text('Please fill title, date and time.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+        ],
+      ),
+    );
+    return;
+  }
+
+  if (isEditing && assignment != null) {
+    // buat object baru dengan perubahan -> kembalikan updated Assignment
+    final updated = assignment!.copyWith(
+      title: titleController.text.trim(),
+      date: dateController.text.trim(),
+      time: timeController.text.trim(),
+      description: descriptionController.text.trim(),
+      updatedAt: DateTime.now(),
+    );
+    Navigator.pop(context, updated);
+  } else {
+    final created = Assignment(
+      userId: '', // Akan diisi oleh HomeScreen
+      title: titleController.text.trim(),
+      date: dateController.text.trim(),
+      time: timeController.text.trim(),
+      description: descriptionController.text.trim(),
+      isFinished: false,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    Navigator.pop(context, created);
+  }
+}
 
     return Scaffold(
       appBar: AppBar(

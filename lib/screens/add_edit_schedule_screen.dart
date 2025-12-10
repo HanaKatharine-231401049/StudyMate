@@ -32,44 +32,50 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
     }
   }
 
-  Future<void> _saveSchedule(BuildContext context) async {
-    if (_titleController.text.trim().isEmpty ||
-        _dateController.text.trim().isEmpty ||
-        _timeController.text.trim().isEmpty) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Validation Error'),
-          content: const Text('Please fill title, date and time.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+  // Dalam method _saveSchedule, ganti dengan:
 
-    if (widget.isEditing && widget.schedule != null) {
-      final updated = widget.schedule!.copyWith(
-        title: _titleController.text.trim(),
-        date: _dateController.text.trim(),
-        time: _timeController.text.trim(),
-        description: _descriptionController.text.trim(),
-      );
-      Navigator.pop(context, updated);
-    } else {
-      final created = Schedule(
-        _titleController.text.trim(),
-        _dateController.text.trim(),
-        _timeController.text.trim(),
-        _descriptionController.text.trim(),
-      );
-      Navigator.pop(context, created);
-    }
+Future<void> _saveSchedule(BuildContext context) async {
+  if (_titleController.text.trim().isEmpty ||
+      _dateController.text.trim().isEmpty ||
+      _timeController.text.trim().isEmpty) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Validation Error'),
+        content: const Text('Please fill title, date and time.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    return;
   }
+
+  if (widget.isEditing && widget.schedule != null) {
+    final updated = widget.schedule!.copyWith(
+      title: _titleController.text.trim(),
+      date: _dateController.text.trim(),
+      time: _timeController.text.trim(),
+      description: _descriptionController.text.trim(),
+      updatedAt: DateTime.now(),
+    );
+    Navigator.pop(context, updated);
+  } else {
+    final created = Schedule(
+      userId: '', // Akan diisi oleh HomeScreen
+      title: _titleController.text.trim(),
+      date: _dateController.text.trim(),
+      time: _timeController.text.trim(),
+      description: _descriptionController.text.trim(),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    Navigator.pop(context, created);
+  }
+}
 
   @override
   Widget build(BuildContext context) {
