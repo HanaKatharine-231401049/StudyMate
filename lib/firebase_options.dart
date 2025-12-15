@@ -41,20 +41,21 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCP1VsOn8xb_CLNVFCL2Gp13zTGkJ-WKIo',
-    appId: '1:528368875856:web:7e3c8452ca9318913b9455',
-    messagingSenderId: '528368875856',
-    projectId: 'study-mate-eef32',
-    authDomain: 'study-mate-eef32.firebaseapp.com',
-    storageBucket: 'study-mate-eef32.firebasestorage.app',
+    apiKey: 'AIzaSyCxhlwxM5C4rQzKO19kqAwgL4-Gd3DdJ_k',
+    appId: '1:861714301924:web:7ed4426823966c1215bdf1',
+    messagingSenderId: '861714301924',
+    projectId: 'studymate-8e8ec',
+    authDomain: 'studymate-8e8ec.firebaseapp.com',
+    storageBucket: 'studymate-8e8ec.firebasestorage.app',
+    measurementId: 'G-ZJXHTKJ1KJ',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAq4bMLZt6hCN8IJAQJ9j6lT0Bg8YLO1kA',
-    appId: '1:528368875856:android:f6ac3fe03d1d5da43b9455',
-    messagingSenderId: '528368875856',
-    projectId: 'study-mate-eef32',
-    storageBucket: 'study-mate-eef32.firebasestorage.app',
+    apiKey: 'AIzaSyAi4myudLfIVfV3_0_EuLeFrLM45If1uHE',
+    appId: '1:861714301924:android:7b1234e27fe2f28b15bdf1',
+    messagingSenderId: '861714301924',
+    projectId: 'studymate-8e8ec',
+    storageBucket: 'studymate-8e8ec.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -76,11 +77,13 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCP1VsOn8xb_CLNVFCL2Gp13zTGkJ-WKIo',
-    appId: '1:528368875856:web:b74e94c6ea8524953b9455',
-    messagingSenderId: '528368875856',
-    projectId: 'study-mate-eef32',
-    authDomain: 'study-mate-eef32.firebaseapp.com',
-    storageBucket: 'study-mate-eef32.firebasestorage.app',
+    apiKey: 'AIzaSyCxhlwxM5C4rQzKO19kqAwgL4-Gd3DdJ_k',
+    appId: '1:861714301924:web:3929870812fa5c7115bdf1',
+    messagingSenderId: '861714301924',
+    projectId: 'studymate-8e8ec',
+    authDomain: 'studymate-8e8ec.firebaseapp.com',
+    storageBucket: 'studymate-8e8ec.firebasestorage.app',
+    measurementId: 'G-ND8CL7T28Y',
   );
+
 }
