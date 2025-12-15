@@ -1,33 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../utils/colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MoodScreen extends StatelessWidget {
-  const MoodScreen({Key? key}) : super(key: key);
+  const MoodScreen({super.key});
 
-  // link playlist Spotify
-  static const String deepFocusUrl = 'https://open.spotify.com/playlist/3Dg3Yj8rLfwECu1AVZNz22?si=efae95225e234ac9';
-  static const String studyUrl = 'https://open.spotify.com/playlist/1E6KoJG2lWZ6IlGcAnfZhL?si=123327217c3b4820';
-  static const String creativeUrl = 'https://open.spotify.com/playlist/2ty1GmgQkIN0ZGSkNdH42e?si=10f2482fae534e22';
-  static const String energeticUrl = 'https://open.spotify.com/playlist/19xyRNClUFsWhbvLzWOvxb?si=a43b2774678b4644';
+  // Spotify playlist links
+  static const String deepFocusUrl =
+      'https://open.spotify.com/playlist/3Dg3Yj8rLfwECu1AVZNz22?si=efae95225e234ac9';
+  static const String studyUrl =
+      'https://open.spotify.com/playlist/1E6KoJG2lWZ6IlGcAnfZhL?si=123327217c3b4820';
+  static const String creativeUrl =
+      'https://open.spotify.com/playlist/2ty1GmgQkIN0ZGSkNdH42e?si=10f2482fae534e22';
+  static const String energeticUrl =
+      'https://open.spotify.com/playlist/19xyRNClUFsWhbvLzWOvxb?si=a43b2774678b4644';
 
-  void _onTapPlaylist(BuildContext context, String url) async {
-  final Uri uri = Uri.parse(url);
+  Future<void> _onTapPlaylist(BuildContext context, String url) async {
+    final Uri uri = Uri.parse(url);
 
-  // Launch aplikasi Spotify
-  if (!await launchUrl(
-    uri,
-    mode: LaunchMode.externalApplication,
-  )) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Tidak dapat membuka Spotify'),
-      ),
-    );
+    if (!await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    )) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Tidak dapat membuka Spotify',
+            style: GoogleFonts.inter(),
+          ),
+        ),
+      );
+    }
   }
-}
 
   Widget _moodTile({
     required BuildContext context,
@@ -35,13 +40,16 @@ class MoodScreen extends StatelessWidget {
     required String label,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    final scheme = Theme.of(context).colorScheme;
+
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: scheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kInkTone.withOpacity(0.12)),
+          border: Border.all(color: scheme.outline.withOpacity(0.8)),
         ),
         padding: const EdgeInsets.symmetric(vertical: 20),
         child: Column(
@@ -58,7 +66,7 @@ class MoodScreen extends StatelessWidget {
               label,
               style: GoogleFonts.inter(
                 fontSize: 14,
-                color: kAccentColor,
+                color: scheme.primary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -70,15 +78,17 @@ class MoodScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.background,
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.background,
         elevation: 0,
         title: const Text(''),
         automaticallyImplyLeading: true,
-        iconTheme: const IconThemeData(color: kAccentColor),
+        iconTheme: IconThemeData(color: scheme.primary),
       ),
 
       body: SafeArea(
@@ -87,38 +97,36 @@ class MoodScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // HEADER MOOD
+              // HEADER
               RichText(
                 text: TextSpan(
                   style: GoogleFonts.montserratAlternates(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: scheme.onBackground,
                   ),
                   children: [
                     const TextSpan(text: 'Find your perfect '),
                     TextSpan(
                       text: 'music',
-                      style: const TextStyle(color: kAccentColor),
+                      style: TextStyle(color: scheme.primary),
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 4),
-
               RichText(
                 text: TextSpan(
                   style: GoogleFonts.montserratAlternates(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: scheme.onBackground,
                   ),
                   children: [
                     const TextSpan(text: 'to '),
                     TextSpan(
                       text: 'study',
-                      style: const TextStyle(color: kAccentColor),
+                      style: TextStyle(color: scheme.primary),
                     ),
                   ],
                 ),
@@ -126,13 +134,14 @@ class MoodScreen extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // CARD MOOD
+              // CARD
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: kBackgroundColor,
+                  color: scheme.surface,
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: scheme.outline.withOpacity(0.8)),
                 ),
                 child: Column(
                   children: [
@@ -141,7 +150,7 @@ class MoodScreen extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: scheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 16),
