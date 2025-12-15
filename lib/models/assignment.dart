@@ -1,97 +1,98 @@
 // lib/models/assignment.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../utils/date_utils.dart';
+
 class Assignment {
-  String? id; // Ditambahkan untuk Firestore document ID
-  String? userId; // Ditambahkan untuk user-specific data
-  String title;
-  String date;
-  String time;
-  String description;
-  bool isFinished;
-  DateTime? finishedAt; // Ditambahkan untuk timestamp selesai
-  DateTime? createdAt; // Ditambahkan untuk timestamp
-  DateTime? updatedAt; // Ditambahkan untuk timestamp
+  final String id;          // Firestore doc id
+  final String title;
+  final DateTime dueDate;   // REAL date
+  final String time;        // "10:30 - 12:00"
+  final String description;
+  final bool isFinished;
 
   Assignment({
-    this.id,
-    this.userId,
+    required this.id,
     required this.title,
-    required this.date,
+    required this.dueDate,
     required this.time,
     required this.description,
-    this.isFinished = false,
-    this.finishedAt,
-    this.createdAt,
-    this.updatedAt,
+    required this.isFinished,
   });
 
-  // copyWith untuk membuat salinan dengan perubahan tertentu
+  /// For UI: same as your old `date` string.
+  String get dateString => DateUtilsHelper.formatDate(dueDate);
+
   Assignment copyWith({
     String? id,
-    String? userId,
     String? title,
-    String? date,
+    DateTime? dueDate,
     String? time,
     String? description,
     bool? isFinished,
-    DateTime? finishedAt,
-    DateTime? createdAt,
-    DateTime? updatedAt,
   }) {
     return Assignment(
       id: id ?? this.id,
-      userId: userId ?? this.userId,
       title: title ?? this.title,
-      date: date ?? this.date,
+      dueDate: dueDate ?? this.dueDate,
       time: time ?? this.time,
       description: description ?? this.description,
       isFinished: isFinished ?? this.isFinished,
-      finishedAt: finishedAt ?? this.finishedAt,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
-  // helper toggle (mutasi sederhana, tetap kompatibel jika kamu menggunakan instance mutabel)
-  void toggleFinished() {
-    isFinished = !isFinished;
-    finishedAt = isFinished ? DateTime.now() : null;
-    updatedAt = DateTime.now();
+  /// Firestore -> Assignment (supports old and new schemas)
+  factory Assignment.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+
+    final title = data['title']?.toString() ?? '';
+    final time = (data['time'] ?? data['timeRange'] ?? '').toString();
+    final description = data['description']?.toString() ?? '';
+
+    final isFinished = data['isFinished'] is bool
+        ? data['isFinished'] as bool
+        : false;
+
+    DateTime? dueDate;
+
+    final dueDateTs = data['dueDate'];
+    final dateTs = data['date'];
+
+    if (dueDateTs is Timestamp) {
+      // New schema: dueDate as Timestamp
+      dueDate = dueDateTs.toDate();
+    } else if (dateTs is Timestamp) {
+      // Old schema: date as Timestamp
+      dueDate = dateTs.toDate();
+    } else if (data['dateString'] is String) {
+      // Old schema: stored formatted string
+      dueDate = DateUtilsHelper.tryParse(data['dateString'] as String);
+    } else if (data['date'] is String) {
+      // Old schema: plain string "date"
+      dueDate = DateUtilsHelper.tryParse(data['date'] as String);
+    }
+
+    return Assignment(
+      id: doc.id,
+      title: title,
+      dueDate: dueDate ?? DateTime.now(),
+      time: time,
+      description: description,
+      isFinished: isFinished,
+    );
   }
 
-  // Convert to Map untuk Firestore
-  Map<String, dynamic> toMap() {
+  /// Assignment -> Firestore
+  Map<String, dynamic> toMap({bool isNew = false}) {
     return {
-      'userId': userId,
       'title': title,
-      'date': date,
+      'dueDate': Timestamp.fromDate(dueDate),
       'time': time,
       'description': description,
       'isFinished': isFinished,
-      'finishedAt': finishedAt?.toIso8601String(),
-      'createdAt': createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      if (isNew) 'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     };
   }
-
-  // Create from Firestore document
-  factory Assignment.fromMap(String id, Map<String, dynamic> map) {
-    return Assignment(
-      id: id,
-      userId: map['userId'] ?? '',
-      title: map['title'] ?? '',
-      date: map['date'] ?? '',
-      time: map['time'] ?? '',
-      description: map['description'] ?? '',
-      isFinished: map['isFinished'] ?? false,
-      finishedAt: map['finishedAt'] != null 
-          ? DateTime.parse(map['finishedAt']) 
-          : null,
-      createdAt: map['createdAt'] != null 
-          ? DateTime.parse(map['createdAt']) 
-          : DateTime.now(),
-      updatedAt: map['updatedAt'] != null 
-          ? DateTime.parse(map['updatedAt']) 
-          : DateTime.now(),
-    );
-  }
 }
+ 

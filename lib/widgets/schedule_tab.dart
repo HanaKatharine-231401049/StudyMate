@@ -1,19 +1,15 @@
 // lib/widgets/schedule_tab.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+
 import '../models/schedule.dart';
-import '../utils/colors.dart';
-import '../widgets/calendar_picker.dart';
 
-
-typedef ScheduleTapCallback = void Function(Schedule schedule);
-typedef DateSelectCallback = void Function(String date);
-
-class ScheduleTab extends StatelessWidget {
+class ScheduleTab extends StatefulWidget {
   final List<Schedule> schedules;
   final String selectedDate;
-  final DateSelectCallback onSelectDate;
-  final ScheduleTapCallback onTapSchedule;
+  final void Function(String dateString) onSelectDate;
+  final void Function(Schedule schedule) onTapSchedule;
 
   const ScheduleTab({
     super.key,
@@ -24,137 +20,306 @@ class ScheduleTab extends StatelessWidget {
   });
 
   @override
+  State<ScheduleTab> createState() => _ScheduleTabState();
+}
+
+class _ScheduleTabState extends State<ScheduleTab> {
+  late DateTime _selectedDay;
+  late DateTime _weekStart;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = _parse(widget.selectedDate) ?? DateTime.now();
+    _weekStart = _weekStartOf(_selectedDay);
+  }
+
+  @override
+  void didUpdateWidget(covariant ScheduleTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedDate != widget.selectedDate) {
+      final parsed = _parse(widget.selectedDate);
+      if (parsed != null) {
+        setState(() {
+          _selectedDay = parsed;
+          _weekStart = _weekStartOf(parsed);
+        });
+      }
+    }
+  }
+
+  DateTime? _parse(String raw) {
+    raw = raw.trim();
+    if (raw.isEmpty) return null;
+
+    // ISO
+    final iso = DateTime.tryParse(raw);
+    if (iso != null) return iso;
+
+    const formats = [
+      'd MMMM yyyy',
+      'dd MMMM yyyy',
+      'dd MMM yyyy',
+      'd MMM yyyy',
+      'dd/MM/yyyy',
+      'd/M/yyyy',
+      'dd-MM-yyyy',
+      'd-M-yyyy',
+      'yyyy-MM-dd',
+      'yyyy/MM/dd',
+      'MMM d, yyyy',
+      'MMMM d, yyyy',
+    ];
+
+    for (final f in formats) {
+      try {
+        return DateFormat(f).parseStrict(raw);
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  DateTime _weekStartOf(DateTime day) {
+    return day.subtract(Duration(days: day.weekday - 1));
+  }
+
+  List<DateTime> _weekDays(DateTime start) =>
+      List.generate(7, (i) => start.add(Duration(days: i)));
+
+  // ---------------- PICKER ----------------
+  Future<void> _openPicker() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDay,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        // force picker to follow theme
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme,
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked == null) return;
+
+    final formatted = DateFormat('d MMMM yyyy').format(picked);
+    setState(() {
+      _selectedDay = picked;
+      _weekStart = _weekStartOf(picked);
+    });
+    widget.onSelectDate(formatted);
+  }
+
+  void _selectDay(DateTime day) {
+    final formatted = DateFormat('d MMMM yyyy').format(day);
+    setState(() {
+      _selectedDay = day;
+      _weekStart = _weekStartOf(day);
+    });
+    widget.onSelectDate(formatted);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    final week = _weekDays(_weekStart);
+    final monthTitle = DateFormat('MMMM').format(_selectedDay);
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // header row
+        // ---------------- TOP BAR ----------------
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('January',
-                  style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold, fontSize: 16)),
-              Container(
-                decoration: BoxDecoration(
-                  color: kBackgroundColor,
-                  borderRadius: BorderRadius.circular(10),
+              Text(
+                monthTitle,
+                style: GoogleFonts.montserrat(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: scheme.onBackground,
                 ),
-                child: CalendarPickerButton(
-                  initialDateString: selectedDate,
-                  onDateSelected: (formatted) {
-                    onSelectDate(formatted);
+              ),
+              const Spacer(),
+
+              // Calendar button
+              InkWell(
+                onTap: _openPicker,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: scheme.outline),
+                  ),
+                  child: Icon(
+                    Icons.calendar_month,
+                    color: scheme.primary,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ---------------- WEEK STRIP ----------------
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: week.map((day) {
+              final isSelected = day.year == _selectedDay.year &&
+                  day.month == _selectedDay.month &&
+                  day.day == _selectedDay.day;
+
+              final dow = DateFormat('E').format(day); // Mon, Tue...
+
+              return GestureDetector(
+                onTap: () => _selectDay(day),
+                child: Column(
+                  children: [
+                    Text(
+                      dow,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: scheme.onBackground.withOpacity(0.65),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 34,
+                      height: 34,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isSelected ? scheme.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected
+                              ? scheme.primary
+                              : scheme.outline.withOpacity(0.5),
+                        ),
+                      ),
+                      child: Text(
+                        '${day.day}',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color:
+                              isSelected ? scheme.onPrimary : scheme.onBackground,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // ---------------- SCHEDULE LIST ----------------
+        Expanded(
+          child: widget.schedules.isEmpty
+              ? Center(
+                  child: Text(
+                    'No schedules for this day.',
+                    style: GoogleFonts.inter(
+                      color: scheme.onBackground.withOpacity(0.55),
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: widget.schedules.length,
+                  itemBuilder: (context, i) {
+                    final s = widget.schedules[i];
+                    return _ScheduleItem(
+                      schedule: s,
+                      scheme: scheme,
+                      onTap: () => widget.onTapSchedule(s),
+                    );
                   },
                 ),
-              )
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        // tanggal horizontal
-        SizedBox(
-          height: 50,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            children: [
-              _buildDateItem('Mon', '14', '14 January 2025'),
-              _buildDateItem('Tue', '15', '15 January 2025'),
-              _buildDateItem('Wed', '16', '16 January 2025'),
-              _buildDateItem('Thu', '17', '17 January 2025'),
-              _buildDateItem('Fri', '18', '18 January 2025'),
-              _buildDateItem('Sat', '19', '19 January 2025'),
-              _buildDateItem('Sun', '20', '20 January 2025'),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        // list jadwal
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80),
-            itemCount:
-                schedules.where((s) => s.date.contains(selectedDate)).length,
-            itemBuilder: (context, index) {
-              final filtered =
-                  schedules.where((s) => s.date.contains(selectedDate)).toList();
-              final schedule = filtered[index];
-              return _buildScheduleItem(context, schedule);
-            },
-          ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildDateItem(String day, String date, String fullDate) {
-    bool isSelected = selectedDate == fullDate;
-    return GestureDetector(
-      onTap: () => onSelectDate(fullDate),
-      child: Container(
-        width: 50,
-        margin: const EdgeInsets.symmetric(horizontal: 5),
-        decoration: BoxDecoration(
-          color: isSelected ? kInkTone.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(day,
-                style: GoogleFonts.inter(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    fontSize: 12,
-                    color: isSelected ? kInkTone : Colors.grey[700])),
-            Text(date,
-                style: GoogleFonts.inter(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    decoration:
-                        isSelected ? TextDecoration.underline : TextDecoration.none,
-                    decorationColor: kInkTone)),
-          ],
-        ),
-      ),
-    );
-  }
+// ---------------- CARD ITEM ----------------
+class _ScheduleItem extends StatelessWidget {
+  final Schedule schedule;
+  final ColorScheme scheme;
+  final VoidCallback onTap;
 
-  Widget _buildScheduleItem(BuildContext context, Schedule schedule) {
+  const _ScheduleItem({
+    required this.schedule,
+    required this.scheme,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => onTapSchedule(schedule),
+      onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        padding: const EdgeInsets.all(15),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: kBackgroundColor,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: kInkTone.withOpacity(0.5)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
-            ),
-          ],
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outline),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.access_time, size: 20, color: kInkTone),
-            const SizedBox(width: 10),
+            // Left time column
+            Container(
+              width: 80,
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                schedule.time,
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w700,
+                  color: scheme.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Right details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(schedule.time,
-                      style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 5),
-                  Text(schedule.title,
+                  Text(
+                    schedule.title,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  if (schedule.description.isNotEmpty)
+                    Text(
+                      schedule.description,
                       style: GoogleFonts.inter(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(schedule.description,
-                      style: GoogleFonts.inter(fontSize: 14)),
+                        fontSize: 13,
+                        color: scheme.onSurface.withOpacity(0.7),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -162,98 +327,5 @@ class ScheduleTab extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  // GANTI: gunakan showDatePicker (native popup) sama seperti Add/Edit page
-  void _showCalendarDialog(BuildContext context) async {
-    // parse selectedDate jadi initial DateTime, fallback ke now
-    DateTime initial = _parseSelectedDate(selectedDate) ?? DateTime.now();
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-
-    if (picked != null) {
-      String formatted = '${picked.day} ${_getMonthName(picked.month)} ${picked.year}';
-      onSelectDate(formatted);
-    }
-  }
-
-  DateTime? _parseSelectedDate(String sel) {
-    try {
-      final parts = sel.trim().split(' ');
-      if (parts.length == 3) {
-        final day = int.parse(parts[0]);
-        final month = _monthFromName(parts[1]);
-        final year = int.parse(parts[2]);
-        return DateTime(year, month, day);
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  int _monthFromName(String name) {
-    switch (name.toLowerCase()) {
-      case 'january':
-        return 1;
-      case 'february':
-        return 2;
-      case 'march':
-        return 3;
-      case 'april':
-        return 4;
-      case 'may':
-        return 5;
-      case 'june':
-        return 6;
-      case 'july':
-        return 7;
-      case 'august':
-        return 8;
-      case 'september':
-        return 9;
-      case 'october':
-        return 10;
-      case 'november':
-        return 11;
-      case 'december':
-        return 12;
-      default:
-        return 1;
-    }
-  }
-
-  String _getMonthName(int month) {
-    switch (month) {
-      case 1:
-        return 'January';
-      case 2:
-        return 'February';
-      case 3:
-        return 'March';
-      case 4:
-        return 'April';
-      case 5:
-        return 'May';
-      case 6:
-        return 'June';
-      case 7:
-        return 'July';
-      case 8:
-        return 'August';
-      case 9:
-        return 'September';
-      case 10:
-        return 'October';
-      case 11:
-        return 'November';
-      case 12:
-        return 'December';
-      default:
-        return '';
-    }
   }
 }

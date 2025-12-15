@@ -1,73 +1,65 @@
 // lib/models/note.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+
 class Note {
-  String? id; // Ditambahkan untuk Firestore document ID
-  String? userId; // Ditambahkan untuk user-specific data
-  String title;
-  String date;
-  String description;
-  DateTime? createdAt; // Ditambahkan untuk timestamp
-  DateTime? updatedAt; // Ditambahkan untuk timestamp
+  final String id;
+  final String title;
+
+  /// UI-friendly formatted string (what your textfields show)
+  final String date;
+
+  final String description;
 
   Note({
-    this.id,
-    this.userId,
+    required this.id,
     required this.title,
     required this.date,
     required this.description,
-    this.createdAt,
-    this.updatedAt,
   });
 
-  // copyWith untuk membuat salinan dengan perubahan tertentu
   Note copyWith({
     String? id,
-    String? userId,
     String? title,
     String? date,
     String? description,
-    DateTime? createdAt,
-    DateTime? updatedAt,
   }) {
     return Note(
       id: id ?? this.id,
-      userId: userId ?? this.userId,
       title: title ?? this.title,
       date: date ?? this.date,
       description: description ?? this.description,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
-  // Convert to Map untuk Firestore
-  Map<String, dynamic> toMap() {
+  factory Note.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+
+    // Prefer stored UI string if present
+    String dateString = (data['dateString'] ?? '') as String;
+
+    // If dateString missing, fall back to Timestamp -> formatted string
+    final ts = data['date'];
+    if (dateString.isEmpty && ts is Timestamp) {
+      dateString = DateFormat('d MMMM yyyy').format(ts.toDate());
+    }
+
+    return Note(
+      id: doc.id,
+      title: (data['title'] ?? '') as String,
+      date: dateString,
+      description: (data['description'] ?? '') as String,
+    );
+  }
+
+  Map<String, dynamic> toMap({
+    required DateTime dateObj,
+  }) {
     return {
-      'userId': userId,
       'title': title,
-      'date': date,
+      'date': Timestamp.fromDate(dateObj), // real firestore date
+      'dateString': date,                  // UI string
       'description': description,
-      'createdAt': createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
   }
-
-  // Create from Firestore document
-  factory Note.fromMap(String id, Map<String, dynamic> map) {
-    return Note(
-      id: id,
-      userId: map['userId'] ?? '',
-      title: map['title'] ?? '',
-      date: map['date'] ?? '',
-      description: map['description'] ?? '',
-      createdAt: map['createdAt'] != null 
-          ? DateTime.parse(map['createdAt']) 
-          : DateTime.now(),
-      updatedAt: map['updatedAt'] != null 
-          ? DateTime.parse(map['updatedAt']) 
-          : DateTime.now(),
-    );
-  }
-
-  @override
-  String toString() => 'Note(title: $title, date: $date)';
 }
