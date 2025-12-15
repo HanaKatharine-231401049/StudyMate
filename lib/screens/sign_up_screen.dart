@@ -2,6 +2,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'sign_in_screen.dart';
 import 'home_screen.dart';
 import '../services/auth_service.dart';
@@ -16,12 +17,17 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
-  bool _loading = false; 
-  bool _loadingGoogle = false; 
+
+  bool _loading = false;        // email/password sign up
+  bool _loadingGoogle = false;  // Google sign in/up
+
+  // ---------------- UI helpers ----------------
 
   void _togglePasswordVisibility() {
     setState(() {
@@ -41,38 +47,48 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Future<void> _signUpWithGoogle() async {
+  // ---------------- GOOGLE SIGN IN / SIGN UP ----------------
+  Future<void> _continueWithGoogle() async {
+    if (_loadingGoogle) return;
+
     setState(() => _loadingGoogle = true);
 
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
-      if (kDebugMode) print('Calling AuthService.signInWithGoogle() from SignUpScreen');
-      final String? error = await auth.signInWithGoogle();
-      if (kDebugMode) print('AuthService.signInWithGoogle returned: $error');
+      if (kDebugMode) {
+        print('Calling AuthService.signInWithGoogle() from SignUpScreen');
+      }
 
+      final String? error = await auth.signInWithGoogle();
+
+      if (!mounted) return;
       setState(() => _loadingGoogle = false);
+
+      if (kDebugMode) {
+        print('AuthService.signInWithGoogle returned: $error');
+      }
 
       if (error != null) {
         _showErrorDialog(error);
         return;
       }
 
-      // sukses -> navigasi ke home
-      if (!mounted) return;
+      // success -> go to home
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomePage()),
+        MaterialPageRoute(builder: (_) => const HomePage()),
       );
     } catch (e, st) {
       if (kDebugMode) {
-        print('Exception in _signUpWithGoogle: $e\n$st');
+        print('Exception in _continueWithGoogle: $e\n$st');
       }
+      if (!mounted) return;
       setState(() => _loadingGoogle = false);
-      _showErrorDialog('Terjadi kesalahan saat Sign Up dengan Google.');
+      _showErrorDialog('Terjadi kesalahan saat Sign in dengan Google.');
     }
   }
 
+  // ---------------- EMAIL/PASSWORD SIGN UP ----------------
   Future<void> _signUp() async {
-    // Validasi form
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final confirm = _confirmPasswordController.text;
@@ -81,12 +97,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _showErrorDialog('Please fill all fields');
       return;
     }
-
     if (password != confirm) {
       _showErrorDialog('Passwords do not match');
       return;
     }
-
     if (!_acceptTerms) {
       _showErrorDialog('Please accept the terms and privacy policy');
       return;
@@ -94,12 +108,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _loading = true);
 
-    // validasi emailnya
-    final name = email.contains('@') ? email.split('@')[0] : email;
-
     final auth = Provider.of<AuthService>(context, listen: false);
-    final error = await auth.signUp(name: name, email: email, password: password);
 
+    // derive username / fullName for now (since you have no separate fields yet)
+    final localPart = email.contains('@') ? email.split('@')[0] : email;
+    final username = localPart;
+    final fullName = localPart;
+    const phoneNumber = '';   // until you add a phone field
+    const String? photoBase64 = null;
+
+    final error = await auth.signUp(
+      username: username,
+      fullName: fullName,
+      email: email,
+      phoneNumber: phoneNumber,
+      password: password,
+      photoBase64: photoBase64,
+    );
+
+    if (!mounted) return;
     setState(() => _loading = false);
 
     if (error != null) {
@@ -109,6 +136,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     _showSuccessDialog();
   }
+
+  // ---------------- Dialogs ----------------
 
   void _showSuccessDialog() {
     showDialog(
@@ -126,7 +155,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
               Text('Success'),
             ],
           ),
-          content: const Text('Registration successful! You will be redirected to sign in.'),
+          content: const Text(
+            'Registration successful! You will be redirected to sign in.',
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -176,6 +207,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
+  // ---------------- Lifecycle ----------------
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -183,6 +216,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _confirmPasswordController.dispose();
     super.dispose();
   }
+
+  // ---------------- BUILD ----------------
 
   @override
   Widget build(BuildContext context) {
@@ -202,40 +237,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo dan Tulisan Sign Up 
+              // Title + logo
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Tulisan Sign Up
-                  Text(
+                  const Text(
                     'Sign Up',
                     style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w600,
                       fontFamily: 'Poppins',
-                      color: const Color(0xFF03045E),
+                      color: Color(0xFF03045E),
                     ),
                   ),
-                  // Logo di samping kanan
                   Image.asset(
                     'assets/images/studymateLogo.png',
                     width: 80,
                     height: 70,
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
-                      return Icon(
+                      return const Icon(
                         Icons.school_outlined,
                         size: 40,
-                        color: const Color(0xFF03045E),
+                        color: Color(0xFF03045E),
                       );
                     },
                   ),
                 ],
               ),
               const SizedBox(height: 20),
-              
-              // Email Field
-              Text(
+
+              // Email
+              const Text(
                 'Email',
                 style: TextStyle(
                   fontSize: 16,
@@ -258,24 +291,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+                      borderSide:
+                          const BorderSide(color: Color(0xFFDDE0E5)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+                      borderSide:
+                          const BorderSide(color: Color(0xFFDDE0E5)),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFF03045E)),
+                    focusedBorder: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                      borderSide: BorderSide(color: Color(0xFF03045E)),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              
-              // Create Password Field
-              Text(
+
+              // Create password
+              const Text(
                 'Create Password',
                 style: TextStyle(
                   fontSize: 16,
@@ -299,20 +335,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+                      borderSide:
+                          const BorderSide(color: Color(0xFFDDE0E5)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+                      borderSide:
+                          const BorderSide(color: Color(0xFFDDE0E5)),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFF0386D0)),
+                    focusedBorder: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                      borderSide: BorderSide(color: Color(0xFF0386D0)),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                         color: Colors.grey[600],
                       ),
                       onPressed: _togglePasswordVisibility,
@@ -321,9 +362,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
-              // Confirm Password Field
-              Text(
+
+              // Confirm password
+              const Text(
                 'Confirm Password',
                 style: TextStyle(
                   fontSize: 16,
@@ -347,20 +388,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+                      borderSide:
+                          const BorderSide(color: Color(0xFFDDE0E5)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFDDE0E5)),
+                      borderSide:
+                          const BorderSide(color: Color(0xFFDDE0E5)),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFF0386D0)),
+                    focusedBorder: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                      borderSide: BorderSide(color: Color(0xFF0386D0)),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                        _obscureConfirmPassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                         color: Colors.grey[600],
                       ),
                       onPressed: _toggleConfirmPasswordVisibility,
@@ -369,8 +415,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
-              // Terms and Privacy Policy Checkbox
+
+              // Terms checkbox
               Row(
                 children: [
                   SizedBox(
@@ -397,7 +443,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           _acceptTerms = !_acceptTerms;
                         });
                       },
-                      child: Text(
+                      child: const Text(
                         'I accept the terms and privacy policy',
                         style: TextStyle(
                           fontSize: 14,
@@ -411,8 +457,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              
-              // Sign Up Button
+
+              // Sign up button
               SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -424,15 +470,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    disabledBackgroundColor: Colors.grey, // keep visual similar
+                    disabledBackgroundColor: Colors.grey,
                   ),
                   child: _loading
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : Text(
+                      : const Text(
                           'Sign Up',
                           style: TextStyle(
                             fontSize: 16,
@@ -443,8 +492,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              
-              // Garis dengan tulisan Or Sign up with
+
+              // Divider "Or sign up with"
               Stack(
                 alignment: Alignment.center,
                 children: [
@@ -468,14 +517,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              
-              // Google Sign Up Button
+
+              // Google button
               Center(
                 child: SizedBox(
                   width: 108,
                   height: 56,
                   child: OutlinedButton(
-                    onPressed: _loadingGoogle ? null : _signUpWithGoogle,
+                    onPressed:
+                        _loadingGoogle ? null : _continueWithGoogle,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.black,
                       side: const BorderSide(color: Color(0xFFD8DADC)),
@@ -487,18 +537,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
                           )
                         : Image.asset(
                             'assets/images/google_icon.png',
                             width: 20,
                             height: 20,
                             fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
+                            errorBuilder:
+                                (context, error, stackTrace) {
                               return Icon(
                                 Icons.account_circle,
                                 size: 20,
-                                color: Colors.grey,
+                                color: Colors.grey[600],
                               );
                             },
                           ),
@@ -506,13 +559,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Already have an account? Sign In
               Center(
                 child: GestureDetector(
                   onTap: () => _navigateToSignIn(context),
                   child: RichText(
-                    text: TextSpan(
+                    text: const TextSpan(
                       children: [
                         TextSpan(
                           text: 'Already have an account? ',
@@ -529,7 +582,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
                             fontFamily: 'Inter',
-                            color: const Color(0xFF0386D0),
+                            color: Color(0xFF0386D0),
                           ),
                         ),
                       ],

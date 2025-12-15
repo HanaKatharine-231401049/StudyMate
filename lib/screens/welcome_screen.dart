@@ -1,5 +1,4 @@
 // lib/screens/welcome_screen.dart
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -30,19 +29,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Future<void> _handleContinueWithGoogle() async {
+  Future<void> _continueWithGoogle() async {
+    if (_loadingGoogle) return;
+
     setState(() => _loadingGoogle = true);
 
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
-      if (kDebugMode) debugPrint('WelcomeScreen: calling signInWithGoogle');
-
-      // forceAccountSelection true supaya account chooser muncul
-      final String? error = await auth.signInWithGoogle(forceAccountSelection: true);
- 
-      if (kDebugMode) debugPrint('WelcomeScreen: signInWithGoogle returned: $error');
+      final String? error = await auth.signInWithGoogle();
 
       if (!mounted) return;
+
       setState(() => _loadingGoogle = false);
 
       if (error != null) {
@@ -50,50 +47,47 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         return;
       }
 
-      // sukses -> arahkan ke Home
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomePage()),
-        );
-      }
-    } catch (e, st) {
-      if (kDebugMode) debugPrint('Unexpected error in _handleContinueWithGoogle: $e\n$st');
-      if (mounted) setState(() => _loadingGoogle = false);
-      _showErrorDialog('Terjadi kesalahan saat proses Google Sign-In.');
+      // Success → go to Home
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomePage()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingGoogle = false);
+      _showErrorDialog('Failed to continue with Google. Please try again.');
     }
   }
 
   void _showErrorDialog(String message) {
-    showDialog<void>(
+    showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Row(
           children: [
             Icon(Icons.error_outline, color: Colors.red, size: 24),
             SizedBox(width: 8),
-            Text('Gagal masuk'),
+            Text('Error'),
           ],
         ),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Tutup')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
         ],
       ),
     );
-    if (kDebugMode) debugPrint('Google sign-in error: $message');
   }
 
   @override
   Widget build(BuildContext context) {
-    // responsive sizes
-    final screenWidth = MediaQuery.of(context).size.width;
-    final btnWidth = screenWidth * 0.9; // 90% of width
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Top content (logo + texts)
+          // Top section with text + logo
           Align(
             alignment: const Alignment(0, -0.6),
             child: Column(
@@ -101,7 +95,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               children: [
                 Text(
                   'Your True Study Mate',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Roboto',
@@ -119,28 +113,27 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Logo with fallback
                 Image.asset(
                   'assets/images/studymateLogo.png',
                   width: 250,
                   height: 230,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
-                    return Icon(
+                    return const Icon(
                       Icons.school_outlined,
                       size: 100,
-                      color: const Color(0xFF03045E),
+                      color: Color(0xFF03045E),
                     );
                   },
                 ),
                 const SizedBox(height: 1),
-                Text(
+                const Text(
                   'StudyMate',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                     fontFamily: 'MontserratAlternates',
-                    color: const Color(0xFF03045E),
+                    color: Color(0xFF03045E),
                   ),
                 ),
               ],
@@ -156,10 +149,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               children: [
                 // Continue with Google
                 SizedBox(
-                  width: btnWidth,
+                  width: 345,
                   height: 54,
                   child: OutlinedButton(
-                    onPressed: _loadingGoogle ? null : _handleContinueWithGoogle,
+                    onPressed: _loadingGoogle ? null : () => _continueWithGoogle(),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.black,
                       side: const BorderSide(color: Color(0xFFD8DADC), width: 1),
@@ -167,48 +160,48 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         borderRadius: BorderRadius.circular(30),
                       ),
                       alignment: Alignment.centerLeft,
-                      backgroundColor: Colors.white,
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        const SizedBox(width: 16),
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: Image.asset(
-                            'assets/images/google_icon.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Icon(Icons.web, size: 20, color: Colors.grey);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _loadingGoogle
-                              ? const SizedBox(
-                                  height: 20,
-                                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                                )
-                              : Text(
-                                  'Continue with Google',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    fontFamily: 'Roboto',
-                                  ),
+                    child: _loadingGoogle
+                        ? const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Image.asset(
+                                'assets/images/google_icon.png',
+                                width: 20,
+                                height: 20,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.web,
+                                    size: 20,
+                                    color: Colors.grey,
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Continue with Google',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Roboto',
                                 ),
-                        ),
-                      ],
-                    ),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
                 const SizedBox(height: 16),
 
-                // Continue with Email
+                // Continue with Email → SignUpScreen
                 SizedBox(
-                  width: btnWidth,
+                  width: 345,
                   height: 54,
                   child: OutlinedButton(
                     onPressed: () => _navigateToSignUp(context),
@@ -223,17 +216,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        const SizedBox(width: 16),
-                        SizedBox(
+                        Image.asset(
+                          'assets/images/email_icon.png',
                           width: 20,
                           height: 20,
-                          child: Image.asset(
-                            'assets/images/email_icon.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Icon(Icons.email, size: 20, color: Colors.grey);
-                            },
-                          ),
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              Icons.email,
+                              size: 20,
+                              color: Colors.grey,
+                            );
+                          },
                         ),
                         const SizedBox(width: 12),
                         const Text(
@@ -250,7 +243,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // Already have an account?
+                // Already have an account? Log In
                 GestureDetector(
                   onTap: () => _navigateToSignIn(context),
                   child: RichText(
@@ -265,12 +258,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             color: Colors.black.withOpacity(0.7),
                           ),
                         ),
-                        TextSpan(
+                        const TextSpan(
                           text: 'Log In',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF0386D0),
+                            color: Color(0xFF0386D0),
                           ),
                         ),
                       ],

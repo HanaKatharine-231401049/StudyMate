@@ -1,12 +1,11 @@
 // lib/sign_in_screen.dart
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'sign_up_screen.dart';
 import 'home_screen.dart';
 import 'forgot_password_screen.dart';
-import '../services/auth_service.dart'; // <- added
+import '../services/auth_service.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -19,7 +18,8 @@ class _SignInScreenState extends State<SignInScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _loading = false; // <- added
+  bool _loading = false;          // email/password loading
+  bool _loadingGoogle = false;    // Google sign-in loading
 
   void _togglePasswordVisibility() {
     setState(() {
@@ -28,7 +28,6 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   void _navigateToForgotPassword() {
-    // Navigate to the ForgotPasswordScreen
     Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
     );
@@ -40,8 +39,11 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
+  // ------------ GOOGLE SIGN-IN ------------
   Future<void> _signInWithGoogle() async {
-    setState(() => _loading = true);
+    if (_loadingGoogle) return;
+
+    setState(() => _loadingGoogle = true);
 
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
@@ -49,32 +51,26 @@ class _SignInScreenState extends State<SignInScreen> {
 
       if (!mounted) return;
 
-      setState(() => _loading = false);
+      setState(() => _loadingGoogle = false);
 
       if (error != null) {
         _showErrorDialog(error);
         return;
       }
 
-      // sukses - pindah ke Home
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomePage()),
-        );
-      }
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('Unexpected error in _signInWithGoogle: $e\n$st');
-      }
-      if (mounted) {
-        setState(() => _loading = false);
-        _showErrorDialog('Terjadi kesalahan saat mencoba masuk dengan Google.');
-      }
+      // success -> go to Home
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingGoogle = false);
+      _showErrorDialog('Failed to sign in with Google. Please try again.');
     }
   }
 
+  // ------------ EMAIL / PASSWORD SIGN-IN ------------
   Future<void> _signIn() async {
-    // Validasi form
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
@@ -85,33 +81,20 @@ class _SignInScreenState extends State<SignInScreen> {
 
     setState(() => _loading = true);
 
-    try {
-      // Panggil AuthService (via Provider)
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final error = await auth.signIn(email: email, password: password);
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final error = await auth.signIn(email: email, password: password);
 
-      if (!mounted) return;
+    if (!mounted) return;
+    setState(() => _loading = false);
 
-      setState(() => _loading = false);
-
-      if (error != null) {
-        _showErrorDialog(error);
-        return;
-      }
-
-      // Setelah sign in berhasil, arahkan ke HomeScreen
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomePage()),
-        );
-      }
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('Unexpected error in _signIn: $e\n$st');
-      }
-      if (mounted) setState(() => _loading = false);
-      _showErrorDialog('Terjadi kesalahan saat proses sign in.');
+    if (error != null) {
+      _showErrorDialog(error);
+      return;
     }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const HomePage()),
+    );
   }
 
   void _showErrorDialog(String message) {
@@ -139,9 +122,6 @@ class _SignInScreenState extends State<SignInScreen> {
         );
       },
     );
-    if (kDebugMode) {
-      debugPrint('Sign-in error: $message');
-    }
   }
 
   @override
@@ -169,11 +149,10 @@ class _SignInScreenState extends State<SignInScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo dan Tulisan Sign In sejajar
+              // Top row: Sign In + logo
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Tulisan Sign In
                   const Text(
                     'Sign In',
                     style: TextStyle(
@@ -183,7 +162,6 @@ class _SignInScreenState extends State<SignInScreen> {
                       color: Color(0xFF03045E),
                     ),
                   ),
-                  // Logo di samping kanan
                   Image.asset(
                     'assets/images/studymateLogo.png',
                     width: 80,
@@ -201,7 +179,7 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Email Field
+              // Email
               const Text(
                 'Email',
                 style: TextStyle(
@@ -241,7 +219,7 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Password Field
+              // Password
               const Text(
                 'Password',
                 style: TextStyle(
@@ -279,7 +257,9 @@ class _SignInScreenState extends State<SignInScreen> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                         color: Colors.grey[600],
                       ),
                       onPressed: _togglePasswordVisibility,
@@ -289,7 +269,7 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Forgot Password
+              // Forgot password
               Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
@@ -307,7 +287,7 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Sign In Button
+              // Sign In button
               SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -324,7 +304,10 @@ class _SignInScreenState extends State<SignInScreen> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text(
                           'Sign In',
@@ -338,7 +321,7 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Garis dengan tulisan Or Sign in with
+              // Divider
               Stack(
                 alignment: Alignment.center,
                 children: [
@@ -363,13 +346,13 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Google Sign In Button
+              // Google button
               Center(
                 child: SizedBox(
                   width: 108,
                   height: 56,
                   child: OutlinedButton(
-                    onPressed: _loading ? null : _signInWithGoogle,
+                    onPressed: _loadingGoogle ? null : _signInWithGoogle,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.black,
                       side: const BorderSide(color: Color(0xFFD8DADC)),
@@ -377,7 +360,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: _loading
+                    child: _loadingGoogle
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -406,8 +389,8 @@ class _SignInScreenState extends State<SignInScreen> {
                 child: GestureDetector(
                   onTap: _navigateToSignUp,
                   child: RichText(
-                    text: const TextSpan(
-                      children: [
+                    text: TextSpan(
+                      children: const [
                         TextSpan(
                           text: 'Don\'t have an account? ',
                           style: TextStyle(
@@ -431,6 +414,8 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ),
               ),
+
+              
               const SizedBox(height: 20),
             ],
           ),
