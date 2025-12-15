@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "528368875856-7b2fqf461i5cbejtj1688u3d2arcpvvh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.company.studymate",
+            "certificate_hash": "210c8d535adad1cd624d7787231fcfb632ffe6ba"
+          }
+        },
+        {
           "client_id": "528368875856-97c1ermd90ea7hi4rguujdt24n4dm94m.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -93,6 +101,22 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "528368875856-1n2vtapfjb3u64lucl6lfee2gl1lrnmn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.studymate",
+            "certificate_hash": "3e0c951f93d4a73bb931b42dbdb51b19191fa781"
+          }
+        },
+        {
+          "client_id": "528368875856-bo0n68n25hh29inhp7m7vj0jnb4ope16.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.studymate",
+            "certificate_hash": "210c8d535adad1cd624d7787231fcfb632ffe6ba"
+          }
+        },
         {
           "client_id": "528368875856-sulu9dv2cppt2egr0j22cfalknqblr3s.apps.googleusercontent.com",
           "client_type": 3
