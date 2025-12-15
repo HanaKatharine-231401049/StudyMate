@@ -1,13 +1,10 @@
-// lib/screens/home_screen.dart - UPDATE BAGIAN IMPORT
-// tambahkan ini di bagian import paling atas
-import 'dart:async';
+// lib/screens/home_screen.dart
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
-
-// services
-import '../services/auth_service.dart';
-import '../services/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // models
 import '../models/schedule.dart';
@@ -15,8 +12,8 @@ import '../models/assignment.dart';
 import '../models/note.dart';
 
 // utils
-import '../utils/colors.dart';
 import '../utils/dialog_components.dart';
+import '../utils/date_utils.dart';
 
 // pages
 import 'add_edit_schedule_screen.dart';
@@ -51,113 +48,189 @@ class _HomePageState extends State<HomePage> {
   late int _selectedIndex;
   int _assignmentTabIndex = 0;
 
-  // tanggal terpilih - format sesuai dengan schedule_tab
-  String _selectedDate = '15 January 2025';
+  // UI uses string date, but DB uses DateTime/Timestamp
+  String _selectedDateString = DateUtilsHelper.formatDate(DateTime.now());
 
-  // state add options
+  // search state for notes
+  String _noteSearchQuery = '';
+
+  // add options state
   bool _showAddOptions = false;
 
-  // --- Data dari Firebase ---
-  List<Schedule> schedules = [];
-  List<Assignment> assignments = [];
-  List<Note> allNotes = [];
-  List<Note> filteredNotes = [];
-
-  // User name untuk display
-  String _userName = 'User';
-
-  // Stream subscriptions
-  late StreamSubscription<List<Schedule>> _scheduleSubscription;
-  late StreamSubscription<List<Assignment>> _assignmentSubscription;
-  late StreamSubscription<List<Note>> _noteSubscription;
+  late final String uid;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
-    _loadUserData();
-    _setupFirebaseListeners();
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw StateError('User must be logged in to use HomePage.');
+    }
+    uid = user.uid;
   }
 
-  @override
-  void dispose() {
-    _scheduleSubscription.cancel();
-    _assignmentSubscription.cancel();
-    _noteSubscription.cancel();
-    super.dispose();
+  // ---------- Helpers ----------
+
+  DateTime? _parseDateString(String input) {
+    return DateUtilsHelper.tryParse(input);
   }
 
-  void _loadUserData() {
-    final authService = AuthService();
-    _userName = authService.currentUser?.displayName ?? 'User';
-  }
-
-  void _setupFirebaseListeners() {
-    final firestoreService = FirestoreService();
-    
-    // Listen to schedules
-    _scheduleSubscription = firestoreService.getSchedulesByDate(_selectedDate).listen((schedulesList) {
-      if (mounted) {
-        setState(() {
-          schedules = schedulesList;
-        });
-      }
-    });
-
-    // Listen to all assignments
-    _assignmentSubscription = firestoreService.getAssignmentsStream().listen((assignmentsList) {
-      if (mounted) {
-        setState(() {
-          assignments = assignmentsList;
-        });
-      }
-    });
-
-    // Listen to notes
-    _noteSubscription = firestoreService.getNotesStream().listen((notesList) {
-      if (mounted) {
-        setState(() {
-          allNotes = notesList;
-          filteredNotes = List.from(allNotes);
-        });
-      }
+  void _selectDate(String dateString) {
+    setState(() {
+      _selectedDateString = dateString;
     });
   }
 
-  // --- Utilities untuk notes/assignments/schedules --- //
   void _filterNotes(String query) {
-    final lower = query.toLowerCase();
     setState(() {
-      if (query.trim().isEmpty) {
-        filteredNotes = List.from(allNotes);
-      } else {
-        filteredNotes = allNotes.where((note) {
-          return note.title.toLowerCase().contains(lower) ||
-              note.description.toLowerCase().contains(lower);
-        }).toList();
-      }
+      _noteSearchQuery = query.trim().toLowerCase();
     });
   }
 
-  void _selectDate(String date) {
-    setState(() {
-      _selectedDate = date;
-      // Refresh schedules untuk date baru
-      final firestoreService = FirestoreService();
-      _scheduleSubscription.cancel();
-      _scheduleSubscription = firestoreService.getSchedulesByDate(date).listen((schedulesList) {
-        if (mounted) {
-          setState(() {
-            schedules = schedulesList;
-          });
-        }
-      });
-    });
+  void _toggleAddOptions() {
+    setState(() => _showAddOptions = !_showAddOptions);
   }
 
-  // --- Schedule handlers ---
+  void _hideAddOptions() {
+    setState(() => _showAddOptions = false);
+  }
+
+  // ---------- Firestore streams ----------
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _schedulesForSelectedDay() {
+    final day = _parseDateString(_selectedDateString) ?? DateTime.now();
+    final start = DateTime(day.year, day.month, day.day);
+    final end = start.add(const Duration(days: 1));
+
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('schedules')
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('date', isLessThan: Timestamp.fromDate(end))
+        .orderBy('date')
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _allNotesStream() {
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('notes')
+        .orderBy('date', descending: true)
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _allAssignmentsStream() {
+    final col = _db.collection('users').doc(uid).collection('assignments');
+    return col.orderBy('dueDate', descending: false).snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _todayAssignmentsStream() {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+    final end = start.add(const Duration(days: 1));
+
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('assignments')
+        .where('dueDate', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('dueDate', isLessThan: Timestamp.fromDate(end))
+        .where('isFinished', isEqualTo: false)
+        .snapshots();
+  }
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> _userDocStream() {
+    return _db.collection('users').doc(uid).snapshots();
+  }
+
+  // ---------- Delete handlers ----------
+
+  void _confirmDeleteSchedule(Schedule schedule) {
+    showDialog(
+      context: context,
+      builder: (context) => ConfirmationDialog(
+        title: 'Are you sure want to delete schedule?',
+        icon: Icons.delete_forever,
+        onConfirm: () async {
+          Navigator.pop(context);
+          await _db
+              .collection('users')
+              .doc(uid)
+              .collection('schedules')
+              .doc(schedule.id)
+              .delete();
+
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            builder: (_) =>
+                SuccessDialog(title: 'Schedule deleted successfully'),
+          );
+        },
+      ),
+    );
+  }
+
+  void _confirmDeleteNote(Note note) {
+    showDialog(
+      context: context,
+      builder: (context) => ConfirmationDialog(
+        title: 'Are you sure want to delete note?',
+        icon: Icons.delete_forever,
+        onConfirm: () async {
+          Navigator.pop(context);
+          await _db
+              .collection('users')
+              .doc(uid)
+              .collection('notes')
+              .doc(note.id)
+              .delete();
+
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            builder: (_) => SuccessDialog(title: 'Note deleted successfully'),
+          );
+        },
+      ),
+    );
+  }
+
+  void _confirmDeleteAssignment(Assignment assignment) {
+    showDialog(
+      context: context,
+      builder: (context) => ConfirmationDialog(
+        title: 'Are you sure want to delete assignment?',
+        icon: Icons.delete_forever,
+        onConfirm: () async {
+          Navigator.pop(context);
+          await _db
+              .collection('users')
+              .doc(uid)
+              .collection('assignments')
+              .doc(assignment.id)
+              .delete();
+
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            builder: (_) =>
+                SuccessDialog(title: 'Assignment deleted successfully'),
+          );
+        },
+      ),
+    );
+  }
+
+  // ---------- Detail openers ----------
+
   Future<void> _openScheduleDetail(Schedule schedule) async {
-    final result = await Navigator.push<dynamic>(
+    await Navigator.push<dynamic>(
       context,
       MaterialPageRoute(
         builder: (_) => DetailSchedulePage(
@@ -166,98 +239,23 @@ class _HomePageState extends State<HomePage> {
             final res = await Navigator.push<dynamic>(
               context,
               MaterialPageRoute(
-                builder: (_) => AddEditSchedulePage(isEditing: true, schedule: schedule),
+                builder: (_) =>
+                    AddEditSchedulePage(isEditing: true, schedule: schedule),
               ),
             );
-            if (res is Schedule) {
-              // Update di Firebase
-              final firestoreService = FirestoreService();
-              await firestoreService.updateSchedule(res);
-              return res;
-            }
-            return null;
+            return res;
           },
-          onDelete: () async {
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (context) => ConfirmationDialog(
-                title: 'Are you sure want to delete schedule?',
-                icon: Icons.delete_forever,
-                onConfirm: () => Navigator.pop(context, true),
-                onCancel: () => Navigator.pop(context, false),
-              ),
-            );
-            
-            if (confirmed == true) {
-              final firestoreService = FirestoreService();
-              await firestoreService.deleteSchedule(schedule.id!);
-              return true;
-            }
-            return false;
+          onDelete: () {
+            _confirmDeleteSchedule(schedule);
+            return Future.value(null);
           },
         ),
       ),
     );
-
-    if (result is Map && result['deleted'] == true) {
-      // Success dialog akan ditampilkan dari detail page
-      return;
-    }
   }
 
-  // --- Assignment handlers ---
-  Future<void> _openAssignmentDetail(Assignment assignment) async {
-    final result = await Navigator.push<dynamic>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DetailAssignmentPage(
-          assignment: assignment,
-          onEdit: () async {
-            final res = await Navigator.push<Assignment?>(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AddEditAssignmentPage(isEditing: true, assignment: assignment),
-              ),
-            );
-            if (res is Assignment) {
-              // Update di Firebase
-              final firestoreService = FirestoreService();
-              await firestoreService.updateAssignment(res);
-              return res;
-            }
-            return null;
-          },
-          onDelete: () async {
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (context) => ConfirmationDialog(
-                title: 'Are you sure want to delete assignment?',
-                icon: Icons.delete_forever,
-                onConfirm: () => Navigator.pop(context, true),
-                onCancel: () => Navigator.pop(context, false),
-              ),
-            );
-            
-            if (confirmed == true) {
-              final firestoreService = FirestoreService();
-              await firestoreService.deleteAssignment(assignment.id!);
-              return true;
-            }
-            return false;
-          },
-        ),
-      ),
-    );
-
-    if (result is Map && result['deleted'] == true) {
-      // Success dialog akan ditampilkan dari detail page
-      return;
-    }
-  }
-
-  // --- Note handlers ---
   Future<void> _openNoteDetail(Note note) async {
-    final result = await Navigator.push<dynamic>(
+    await Navigator.push<dynamic>(
       context,
       MaterialPageRoute(
         builder: (_) => DetailNotePage(
@@ -266,117 +264,216 @@ class _HomePageState extends State<HomePage> {
             final res = await Navigator.push<dynamic>(
               context,
               MaterialPageRoute(
-                builder: (_) => AddEditNotePage(isEditing: true, note: note),
+                builder: (_) =>
+                    AddEditNotePage(isEditing: true, note: note),
               ),
             );
-            if (res is Note) {
-              // Update di Firebase
-              final firestoreService = FirestoreService();
-              await firestoreService.updateNote(res);
-              return res;
-            }
-            return null;
+            return res;
           },
-          onDelete: () async {
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (context) => ConfirmationDialog(
-                title: 'Are you sure want to delete note?',
-                icon: Icons.delete_forever,
-                onConfirm: () => Navigator.pop(context, true),
-                onCancel: () => Navigator.pop(context, false),
-              ),
-            );
-            
-            if (confirmed == true) {
-              final firestoreService = FirestoreService();
-              await firestoreService.deleteNote(note.id!);
-              return true;
-            }
-            return false;
+          onDelete: () {
+            _confirmDeleteNote(note);
+            return Future.value(null);
           },
         ),
       ),
     );
-
-    if (result is Map && result['deleted'] == true) {
-      // Success dialog akan ditampilkan dari detail page
-      return;
-    }
   }
 
-  // toggle add options
-  void _toggleAddOptions() {
-    setState(() {
-      _showAddOptions = !_showAddOptions;
+  Future<void> _openAssignmentDetail(Assignment assignment) async {
+    await Navigator.push<dynamic>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailAssignmentPage(
+          assignment: assignment,
+          onEdit: () async {
+            final res = await Navigator.push<Assignment?>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AddEditAssignmentPage(
+                  isEditing: true,
+                  assignment: assignment,
+                ),
+              ),
+            );
+            return res;
+          },
+          onDelete: () {
+            _confirmDeleteAssignment(assignment);
+            return Future.value(null);
+          },
+        ),
+      ),
+    );
+  }
+
+  // ---------- Toggle assignment done ----------
+
+  Future<void> _toggleAssignmentDone(Assignment assignment) async {
+    final newValue = !assignment.isFinished;
+
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('assignments')
+        .doc(assignment.id)
+        .update({
+      'isFinished': newValue,
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  void _hideAddOptions() {
-    setState(() {
-      _showAddOptions = false;
-    });
-  }
+  // ---------- Build ----------
 
   @override
   Widget build(BuildContext context) {
-    int totalTasks = assignments.where((a) => !a.isFinished).length;
+    final scheme = Theme.of(context).colorScheme;
 
-    // disable FAB pada tab tertentu (3..6)
+    // disable FAB on tab 3..6
     final bool fabDisabled =
-        (_selectedIndex == 3 || _selectedIndex == 4 || _selectedIndex == 5 || _selectedIndex == 6);
+        (_selectedIndex == 3 ||
+            _selectedIndex == 4 ||
+            _selectedIndex == 5 ||
+            _selectedIndex == 6);
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: (_selectedIndex == 3 ||
-              _selectedIndex == 4 ||
-              _selectedIndex == 5 ||
-              _selectedIndex == 6)
+      backgroundColor: scheme.background,
+
+      appBar: (_selectedIndex >= 3)
           ? null
           : AppBar(
-              backgroundColor: Colors.white,
+              backgroundColor: scheme.background,
               automaticallyImplyLeading: false,
+              elevation: 0,
               toolbarHeight: 120,
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 8),
-                  Text('Hello $_userName', // DIUBAH: Gunakan nama dari Firebase
-                      style: GoogleFonts.montserrat(
-                          fontSize: 18, fontWeight: FontWeight.normal)),
-                  const SizedBox(height: 4),
-                  Text('You\'ve got',
-                      style: GoogleFonts.montserratAlternates(
-                          fontSize: 28, fontWeight: FontWeight.bold)),
-                  Text('$totalTasks tasks today',
-                      style: GoogleFonts.montserratAlternates(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: kAccentColor)),
-                  const SizedBox(height: 8),
-                ],
+              title: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: _userDocStream(),
+                builder: (context, userSnap) {
+                  final userData = userSnap.data?.data();
+                  final username =
+                      (userData?['username'] as String?) ?? 'User';
+
+                  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: _todayAssignmentsStream(),
+                    builder: (context, snap) {
+                      final totalTasks = snap.data?.docs.length ?? 0;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(height: 8),
+                          Text(
+                            'Hello $username',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 18,
+                              fontWeight: FontWeight.normal,
+                              color: scheme.onBackground,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'You\'ve got',
+                            style: GoogleFonts.montserratAlternates(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: scheme.onBackground,
+                            ),
+                          ),
+                          Text(
+                            '$totalTasks tasks today',
+                            style: GoogleFonts.montserratAlternates(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: scheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      );
+                    },
+                  );
+                },
               ),
               actions: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 16.0, top: 20),
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.grey,
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: const Icon(Icons.person, color: kInkTone, size: 30),
-                  ),
+                StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: _userDocStream(),
+                  builder: (context, userSnap) {
+                    final userData = userSnap.data?.data();
+                    final photoBase64 =
+                        (userData?['photoBase64'] as String?) ?? '';
+
+                    Widget child;
+                    BoxDecoration decoration;
+
+                    if (photoBase64.isNotEmpty) {
+                      try {
+                        final bytes = base64Decode(photoBase64);
+                        decoration = BoxDecoration(
+                          borderRadius: BorderRadius.circular(15),
+                          image: DecorationImage(
+                            image: MemoryImage(bytes),
+                            fit: BoxFit.cover,
+                          ),
+                          border: Border.all(
+                            color: scheme.primary.withOpacity(0.6),
+                            width: 1.2,
+                          ),
+                        );
+                        child = const SizedBox.shrink();
+                      } catch (_) {
+                        decoration = BoxDecoration(
+                          color: scheme.surfaceVariant,
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: scheme.outline),
+                        );
+                        child = Icon(
+                          Icons.person,
+                          color: scheme.onSurface,
+                          size: 30,
+                        );
+                      }
+                    } else {
+                      decoration = BoxDecoration(
+                        color: scheme.surfaceVariant,
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: scheme.outline),
+                      );
+                      child = Icon(
+                        Icons.person,
+                        color: scheme.onSurface,
+                        size: 30,
+                      );
+                    }
+
+                    return Padding(
+                      padding:
+                          const EdgeInsets.only(right: 16.0, top: 20),
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedIndex = 6;
+                          });
+                        },
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: decoration,
+                          child: child,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
+
       body: Stack(
         children: [
           Column(
             children: [
-              if (_selectedIndex == 0 || _selectedIndex == 1 || _selectedIndex == 2)
+              if (_selectedIndex == 0 ||
+                  _selectedIndex == 1 ||
+                  _selectedIndex == 2)
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: HeaderTabs(
@@ -390,55 +487,166 @@ class _HomePageState extends State<HomePage> {
                     },
                   ),
                 ),
+
               Expanded(
                 child: IndexedStack(
                   index: _selectedIndex,
                   children: [
-                    // Tab 0: Schedule
-                    ScheduleTab(
-                      schedules: schedules.where((s) => s.date.contains(_selectedDate)).toList(),
-                      selectedDate: _selectedDate,
-                      onSelectDate: _selectDate,
-                      onTapSchedule: _openScheduleDetail,
-                    ),
+                    // ---------------- TAB 0: SCHEDULE ----------------
+                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _schedulesForSelectedDay(),
+                      builder: (context, snap) {
+                        if (snap.hasError) {
+                          return Center(
+                            child: Text(
+                              'Error: ${snap.error}',
+                              style: GoogleFonts.inter(
+                                color: scheme.onBackground,
+                              ),
+                            ),
+                          );
+                        }
+                        if (!snap.hasData) {
+                          return Center(
+                            child: CircularProgressIndicator(
+                              color: scheme.primary,
+                            ),
+                          );
+                        }
 
-                    // Tab 1: Notes
-                    NoteTab(
-                      notes: filteredNotes,
-                      onSearch: _filterNotes,
-                      onTapNote: (note) => _openNoteDetail(note),
-                    ),
+                        final schedules = snap.data!.docs
+                            .map((d) => Schedule.fromDoc(d))
+                            .toList();
 
-                    // Tab 2: Assignment
-                    AssignmentTab(
-                      assignments: assignments,
-                      selectedSubTabIndex: _assignmentTabIndex,
-                      onSubTabChanged: (i) {
-                        setState(() => _assignmentTabIndex = i);
-                      },
-                      onTapAssignment: (assignment) => _openAssignmentDetail(assignment),
-                      onToggleStatus: (assignment) async {
-                        final firestoreService = FirestoreService();
-                        await firestoreService.toggleAssignmentCompletion(
-                          assignment.id!,
-                          assignment.isFinished,
+                        return ScheduleTab(
+                          schedules: schedules,
+                          selectedDate: _selectedDateString,
+                          onSelectDate: _selectDate,
+                          onTapSchedule: _openScheduleDetail,
                         );
                       },
                     ),
 
-                    // Tab 3: Statistics (tidak diubah)
-                    StatisticsScreen(
-                      assignments: assignments,
-                      weeklyStudyHours: [10, 25, 15, 20],
+                    // ---------------- TAB 1: NOTES ----------------
+                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _allNotesStream(),
+                      builder: (context, snap) {
+                        if (snap.hasError) {
+                          return Center(
+                            child: Text(
+                              'Error: ${snap.error}',
+                              style: GoogleFonts.inter(
+                                color: scheme.onBackground,
+                              ),
+                            ),
+                          );
+                        }
+                        if (!snap.hasData) {
+                          return Center(
+                            child: CircularProgressIndicator(
+                              color: scheme.primary,
+                            ),
+                          );
+                        }
+
+                        var notes = snap.data!.docs
+                            .map((d) => Note.fromDoc(d))
+                            .toList();
+
+                        if (_noteSearchQuery.isNotEmpty) {
+                          notes = notes.where((n) {
+                            final t = n.title.toLowerCase();
+                            final d = n.description.toLowerCase();
+                            return t.contains(_noteSearchQuery) ||
+                                d.contains(_noteSearchQuery);
+                          }).toList();
+                        }
+
+                        return NoteTab(
+                          notes: notes,
+                          onSearch: _filterNotes,
+                          onTapNote: _openNoteDetail,
+                        );
+                      },
                     ),
 
-                    // Tab 4: Mood / Music screen
+                    // ---------------- TAB 2: ASSIGNMENTS ----------------
+                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _allAssignmentsStream(),
+                      builder: (context, snap) {
+                        if (snap.hasError) {
+                          // If ordering by dueDate fails, fallback to createdAt
+                          return StreamBuilder<
+                              QuerySnapshot<Map<String, dynamic>>>(
+                            stream: _db
+                                .collection('users')
+                                .doc(uid)
+                                .collection('assignments')
+                                .orderBy('createdAt', descending: true)
+                                .snapshots(),
+                            builder: (context, snap2) {
+                              if (!snap2.hasData) {
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    color: scheme.primary,
+                                  ),
+                                );
+                              }
+                              final assignments = snap2.data!.docs
+                                  .map((d) => Assignment.fromDoc(d))
+                                  .toList();
+
+                              return AssignmentTab(
+                                assignments: assignments,
+                                selectedSubTabIndex: _assignmentTabIndex,
+                                onSubTabChanged: (i) =>
+                                    setState(
+                                        () => _assignmentTabIndex = i),
+                                onTapAssignment: _openAssignmentDetail,
+                                onToggleStatus: (a) =>
+                                    _toggleAssignmentDone(a),
+                              );
+                            },
+                          );
+                        }
+
+                        if (!snap.hasData) {
+                          return Center(
+                            child: CircularProgressIndicator(
+                              color: scheme.primary,
+                            ),
+                          );
+                        }
+
+                        final assignments = snap.data!.docs
+                            .map((d) => Assignment.fromDoc(d))
+                            .toList();
+
+                        return AssignmentTab(
+                          assignments: assignments,
+                          selectedSubTabIndex: _assignmentTabIndex,
+                          onSubTabChanged: (i) =>
+                              setState(() => _assignmentTabIndex = i),
+                          onTapAssignment: _openAssignmentDetail,
+                          onToggleStatus: (a) =>
+                              _toggleAssignmentDone(a),
+                        );
+                      },
+                    ),
+
+                    // ---------------- TAB 3: STATISTICS ----------------
+                    StatisticsScreen(
+                      assignments: const [],
+                      weeklyStudyHours: const [10, 25, 15, 20],
+                    ),
+
+                    // TAB 4: Mood
                     const MoodScreen(),
 
-                    // Tab 5: Pomodoro
+                    // TAB 5: Pomodoro
                     const PomodoroScreen(),
 
-                    // Tab 6: Profile
+                    // TAB 6: Profile
                     const ProfileScreen(),
                   ],
                 ),
@@ -446,70 +654,86 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
 
-          // AddOptionsFab menangani overlay + FAB + option buttons
+                    // ---------------- FAB + ADD OPTIONS ----------------
           AddOptionsFab(
             showAddOptions: _showAddOptions,
             onToggle: _toggleAddOptions,
+
+            // ---------------- ADD SCHEDULE ----------------
             onAddSchedule: () async {
               _hideAddOptions();
-              final result = await Navigator.push<dynamic>(
+
+              final result = await Navigator.push<Schedule?>(
                 context,
                 MaterialPageRoute(
                   builder: (_) => AddEditSchedulePage(isEditing: false),
                 ),
               );
 
-              if (result is Schedule) {
-                final firestoreService = FirestoreService();
-                final savedSchedule = await firestoreService.addSchedule(result);
-                
+              if (!mounted) return;
+
+              // Only show success if user actually saved (result != null)
+              if (result != null) {
                 showDialog(
                   context: context,
-                  builder: (context) => SuccessDialog(title: 'Schedule saved successfully'),
+                  builder: (_) => const SuccessDialog(
+                    title: 'Schedule saved successfully',
+                  ),
                 );
               }
             },
+
+            // ---------------- ADD NOTE ----------------
             onAddNote: () async {
               _hideAddOptions();
-              final result = await Navigator.push<dynamic>(
+
+              final result = await Navigator.push<Note?>(
                 context,
                 MaterialPageRoute(
                   builder: (_) => AddEditNotePage(isEditing: false),
                 ),
               );
 
-              if (result is Note) {
-                final firestoreService = FirestoreService();
-                final savedNote = await firestoreService.addNote(result);
-                
+              if (!mounted) return;
+
+              if (result != null) {
                 showDialog(
                   context: context,
-                  builder: (context) => const SuccessDialog(title: 'Note saved successfully'),
+                  builder: (_) => const SuccessDialog(
+                    title: 'Note saved successfully',
+                  ),
                 );
               }
             },
+
+            // ---------------- ADD ASSIGNMENT ----------------
             onAddAssignment: () async {
               _hideAddOptions();
+
               final result = await Navigator.push<Assignment?>(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const AddEditAssignmentPage(isEditing: false),
+                  builder: (_) =>
+                      const AddEditAssignmentPage(isEditing: false),
                 ),
               );
-              if (result is Assignment) {
-                final firestoreService = FirestoreService();
-                final savedAssignment = await firestoreService.addAssignment(result);
-                
+
+              if (!mounted) return;
+
+              if (result != null) {
                 showDialog(
                   context: context,
-                  builder: (context) => const SuccessDialog(title: 'Assignment saved successfully'),
+                  builder: (_) => const SuccessDialog(
+                    title: 'Assignment saved successfully'),
                 );
               }
             },
+
             disabled: fabDisabled,
           ),
         ],
       ),
+
       bottomNavigationBar: BottomNavBar(
         selectedIndex: _selectedIndex,
         onTapIndex: (idx) {
