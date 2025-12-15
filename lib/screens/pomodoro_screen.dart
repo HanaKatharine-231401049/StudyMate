@@ -1,9 +1,12 @@
 // lib/screens/pomodoro_screen.dart
 import 'dart:async';
 import 'dart:math';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../utils/colors.dart';
+
+import '../services/focus_log_service.dart';
 import 'full_screen_pomodoro.dart';
 import 'set_timer_screen.dart';
 
@@ -15,41 +18,119 @@ class PomodoroScreen extends StatefulWidget {
 }
 
 class _PomodoroScreenState extends State<PomodoroScreen> {
-  // default focus duration
-  Duration _duration = const Duration(minutes: 25);
+  // Firebase
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FocusLogService _focusLogService = FocusLogService();
+
+  // Focus timer
+  Duration _duration = const Duration(minutes: 25); // focus duration
   Duration _current = Duration.zero;
   bool _running = false;
+  bool _isFocusPhase = true; // true = focus, false = break
   Timer? _timer;
-
-  // Dummy stats (only to compute "Focus Today" value)
-  final List<double> _weeklyMinutes = [40, 60, 30, 90, 50, 80, 20];
 
   // Strict mode
   bool _strictBlockNotifications = false;
   bool _strictBlockCalls = false;
 
-  // Set timer
+  // Config
   int _shortBreakMinutes = 5;
   int _sessions = 4;
 
-  // Logika Timer
+  // ----- Focus Today state (loaded only on open + after focus completed) -----
+  int _focusTodayMinutes = 0;
+  bool _focusTodayLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTodayFocusFromDb();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  // ---------------------------------------------------------------------------
+  // LOAD TODAY'S FOCUS (ONE-SHOT)
+  // ---------------------------------------------------------------------------
+  Future<void> _loadTodayFocusFromDb() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      setState(() {
+        _focusTodayMinutes = 0;
+        _focusTodayLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _focusTodayLoading = true;
+    });
+
+    try {
+      final minutes = await _focusLogService
+          .totalFocusMinutesForDay(user.uid, DateTime.now());
+
+      if (!mounted) return;
+      setState(() {
+        _focusTodayMinutes = minutes;
+        _focusTodayLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _focusTodayMinutes = 0;
+        _focusTodayLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to load today\'s focus stats.',
+            style: GoogleFonts.inter(),
+          ),
+        ),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // TIMER LOGIC
+  // ---------------------------------------------------------------------------
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      setState(() {
+        _current += const Duration(seconds: 1);
+
+        final phaseTotal =
+            _isFocusPhase ? _duration : Duration(minutes: _shortBreakMinutes);
+
+        if (_current >= phaseTotal) {
+          _current = phaseTotal;
+          _timer?.cancel();
+
+          if (_isFocusPhase) {
+            _onFocusCompleted();
+          } else {
+            _onBreakCompleted();
+          }
+        }
+      });
+    });
+  }
+
   void _toggleStartPause() {
     if (_running) {
       _timer?.cancel();
       setState(() => _running = false);
     } else {
-      _timer?.cancel();
-      _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-        setState(() {
-          _current += const Duration(seconds: 1);
-          if (_current >= _duration) {
-            _current = _duration;
-            _timer?.cancel();
-            _running = false;
-          }
-        });
-      });
       setState(() => _running = true);
+      _startTimer();
     }
   }
 
@@ -58,25 +139,33 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     setState(() {
       _current = Duration.zero;
       _running = false;
+      _isFocusPhase = true;
     });
   }
 
   void _cycleDuration() {
-    if (_duration.inMinutes == 25) {
-      setState(() => _duration = const Duration(minutes: 50));
-    } else if (_duration.inMinutes == 50) {
-      setState(() => _duration = const Duration(minutes: 5));
-    } else {
-      setState(() => _duration = const Duration(minutes: 25));
-    }
+    setState(() {
+      if (_duration.inMinutes == 25) {
+        _duration = const Duration(minutes: 50);
+      } else if (_duration.inMinutes == 50) {
+        _duration = const Duration(minutes: 5);
+      } else {
+        _duration = const Duration(minutes: 25);
+      }
+    });
     _resetTimer();
   }
 
-  String _formatDuration(Duration d) {
-    final remaining = _duration - _current;
-    final seconds = remaining.inSeconds.clamp(0, remaining.inSeconds);
-    final mm = (seconds ~/ 60).toString().padLeft(2, '0');
-    final ss = (seconds % 60).toString().padLeft(2, '0');
+  // Remaining time for current phase (focus/break)
+  String _formatDuration() {
+    final phaseTotal =
+        _isFocusPhase ? _duration : Duration(minutes: _shortBreakMinutes);
+    final remaining = phaseTotal - _current;
+    final totalSeconds = remaining.inSeconds;
+    final clamped = totalSeconds < 0 ? 0 : totalSeconds;
+
+    final mm = (clamped ~/ 60).toString().padLeft(2, '0');
+    final ss = (clamped % 60).toString().padLeft(2, '0');
     return '$mm:$ss';
   }
 
@@ -87,14 +176,84 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     return '${m}m';
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+  // Called when a focus session finishes
+  void _onFocusCompleted() {
+    _logFocusSession(); // Log to Firestore (and refresh today's total)
+
+    // Auto switch to break
+    _isFocusPhase = false;
+    _current = Duration.zero;
+    _running = true;
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 2),
+          content: Text(
+            'Focus session completed! Time for a $_shortBreakMinutes min break.',
+            style: GoogleFonts.inter(),
+          ),
+        ),
+      );
+    }
+
+    // Start break timer
+    _startTimer();
+  }
+
+  // Called when a break finishes
+  void _onBreakCompleted() {
+    _isFocusPhase = true;
+    _current = Duration.zero;
+    _running = false;
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 2),
+          content: Text(
+            'Break finished! Ready for the next focus session?',
+            style: GoogleFonts.inter(),
+          ),
+        ),
+      );
+    }
+  }
+
+  // Firestore logging: users/{uid}/focus_logs
+  Future<void> _logFocusSession() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      await _focusLogService.addFocusLog(
+        uid: user.uid,
+        durationSeconds: _duration.inSeconds,
+        source: 'pomodoro',
+      );
+
+      // After logging, refresh today's total once
+      await _loadTodayFocusFromDb();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 3),
+          content: Text(
+            'Error logging focus session: $e',
+            style: GoogleFonts.inter(),
+          ),
+        ),
+      );
+    }
   }
 
   // ===== UI building blocks =====
+
   Widget _buildTopHeader() {
+    final scheme = Theme.of(context).colorScheme;
+    final phaseText = _isFocusPhase ? "focus time" : "break time";
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -103,14 +262,14 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF000000),
+              color: scheme.onBackground,
             ),
             children: [
               const TextSpan(text: "It's "),
               TextSpan(
-                text: "focus time",
-                style: const TextStyle(
-                  color: Color(0xFF046CA6),
+                text: phaseText,
+                style: TextStyle(
+                  color: scheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -124,14 +283,14 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF000000),
+              color: scheme.onBackground,
             ),
             children: [
               const TextSpan(text: "Let's get those "),
               TextSpan(
                 text: "goals",
-                style: const TextStyle(
-                  color: Color(0xFF046CA6),
+                style: TextStyle(
+                  color: scheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -143,7 +302,13 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
   }
 
-  Widget _buildTimerCard({required double cardWidth, required double circleBase, required double cardHeight}) {
+  Widget _buildTimerCard({
+    required double cardWidth,
+    required double circleBase,
+    required double cardHeight,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+
     final double innerCircle = max(0.0, circleBase - 30);
     final double controlBtnSize = max(44.0, cardWidth * 0.13);
     final double playBtnPadding = max(16.0, cardWidth * 0.05);
@@ -153,9 +318,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       height: cardHeight,
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFD9E9EC),
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF03045E), width: 1),
+        border: Border.all(color: scheme.outline, width: 1),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -170,13 +335,13 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: kAccentColor.withOpacity(0.95),
+                    color: scheme.primary,
                     width: 12,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: kAccentColor.withOpacity(0.12),
-                      blurRadius: 6,
+                      color: scheme.primary.withOpacity(0.18),
+                      blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
                   ],
@@ -187,16 +352,30 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                 height: innerCircle,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.9),
+                  color: scheme.background.withOpacity(0.95),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  _formatDuration(_current),
-                  style: GoogleFonts.montserratAlternates(
-                    fontSize: max(18.0, innerCircle * 0.16),
-                    fontWeight: FontWeight.bold,
-                    color: kInkTone,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _formatDuration(),
+                      style: GoogleFonts.montserratAlternates(
+                        fontSize: max(18.0, innerCircle * 0.16),
+                        fontWeight: FontWeight.bold,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _isFocusPhase ? 'FOCUS' : 'BREAK',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurface.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -205,24 +384,32 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _smallRoundIconButton(Icons.refresh, _resetTimer, size: controlBtnSize),
+              _smallRoundIconButton(
+                Icons.refresh,
+                _resetTimer,
+                size: controlBtnSize,
+              ),
               SizedBox(width: cardWidth * 0.06),
               ElevatedButton(
                 onPressed: _toggleStartPause,
                 style: ElevatedButton.styleFrom(
                   shape: const CircleBorder(),
-                  backgroundColor: kAccentColor,
+                  backgroundColor: scheme.primary,
+                  foregroundColor: scheme.onPrimary,
                   padding: EdgeInsets.all(playBtnPadding + 4),
                   elevation: 4,
                 ),
                 child: Icon(
                   _running ? Icons.pause : Icons.play_arrow,
-                  color: Colors.white,
                   size: max(28.0, cardWidth * 0.10),
                 ),
               ),
               SizedBox(width: cardWidth * 0.06),
-              _smallRoundIconButton(Icons.repeat, _cycleDuration, size: controlBtnSize),
+              _smallRoundIconButton(
+                Icons.repeat,
+                _cycleDuration,
+                size: controlBtnSize,
+              ),
             ],
           ),
         ],
@@ -230,18 +417,30 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
   }
 
-  Widget _smallRoundIconButton(IconData icon, VoidCallback onPressed, {double size = 46}) {
+  Widget _smallRoundIconButton(
+    IconData icon,
+    VoidCallback onPressed, {
+    double size = 46,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onPressed,
       child: Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: kBackgroundColor,
+          color: scheme.surfaceVariant,
           shape: BoxShape.circle,
-          border: Border.all(color: kInkTone.withOpacity(0.18)),
+          border: Border.all(
+            color: scheme.outline.withOpacity(0.5),
+          ),
         ),
-        child: Icon(icon, color: kInkTone, size: max(18.0, size * 0.44)),
+        child: Icon(
+          icon,
+          color: scheme.primary,
+          size: max(18.0, size * 0.44),
+        ),
       ),
     );
   }
@@ -283,28 +482,35 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
   }
 
-  Widget _buildOptionCardSized(IconData icon, String title, {required double width, VoidCallback? onTap}) {
+  Widget _buildOptionCardSized(
+    IconData icon,
+    String title, {
+    required double width,
+    VoidCallback? onTap,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: width,
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: kBackgroundColor,
+          color: scheme.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFF03045E), width: 1),
+          border: Border.all(color: scheme.outline, width: 1),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: kAccentColor),
+            Icon(icon, color: scheme.primary),
             const SizedBox(height: 6),
             Text(
               title,
               style: GoogleFonts.roboto(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: kInkTone,
+                color: scheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
@@ -314,9 +520,22 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
   }
 
+  /// Focus Today card – now using cached state that refreshes only
+  /// on screen open + after focus session completes.
   Widget _buildFocusToday({required double cardWidth}) {
-    final int todayIndex = (DateTime.now().weekday - 1) % 7;
-    final int todayMinutes = _weeklyMinutes[todayIndex].round();
+    return _focusTodayCard(
+      cardWidth: cardWidth,
+      minutes: _focusTodayMinutes,
+      loading: _focusTodayLoading,
+    );
+  }
+
+  Widget _focusTodayCard({
+    required double cardWidth,
+    required int minutes,
+    required bool loading,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
 
     return SizedBox(
       width: cardWidth,
@@ -324,9 +543,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFFD9E9EC),
+          color: scheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF03045E), width: 1),
+          border: Border.all(color: scheme.outline, width: 1),
         ),
         child: Row(
           children: [
@@ -334,27 +553,68 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: scheme.background,
                 shape: BoxShape.circle,
-                border: Border.all(color: kAccentColor.withOpacity(0.12)),
+                border: Border.all(color: scheme.primary.withOpacity(0.2)),
               ),
-              child: const Icon(Icons.lightbulb, color: kAccentColor, size: 24),
+              child: Icon(
+                Icons.lightbulb,
+                color: scheme.primary,
+                size: 24,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Focus Today', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: kInkTone)),
-                  const SizedBox(height: 6),
                   Text(
-                    _minutesToHourMinute(todayMinutes),
-                    style: GoogleFonts.roboto(fontSize: 18, fontWeight: FontWeight.w700, color: kInkTone),
+                    'Focus Today',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface,
+                    ),
                   ),
+                  const SizedBox(height: 6),
+                  loading
+                      ? Row(
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: scheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Loading...',
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: scheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          _minutesToHourMinute(minutes),
+                          style: GoogleFonts.roboto(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: scheme.primary,
+                          ),
+                        ),
                   const SizedBox(height: 6),
                   Text(
                     'Small sessions add up — keep going!',
-                    style: GoogleFonts.roboto(fontSize: 11, fontWeight: FontWeight.w400, color: kInkTone.withOpacity(0.8)),
+                    style: GoogleFonts.roboto(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                      color: scheme.onSurface.withOpacity(0.8),
+                    ),
                   ),
                 ],
               ),
@@ -366,112 +626,165 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   }
 
   void _showStrictModeSheet() {
+    final scheme = Theme.of(context).colorScheme;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: scheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (context) {
-        return StatefulBuilder(builder: (context, setModalState) {
-          return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 48,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(4),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final bottomScheme = Theme.of(context).colorScheme;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 48,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: bottomScheme.outline.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 36),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            'Strict Mode',
-                            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 36),
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              'Strict Mode',
+                              style: GoogleFonts.inter(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: bottomScheme.onSurface,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.clear, size: 20),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.clear,
+                              size: 20,
+                              color: bottomScheme.onSurface,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text('Block All Notification', style: GoogleFonts.inter(fontSize: 16)),
-                          ),
-                          Switch(
-                            value: _strictBlockNotifications,
-                            onChanged: (v) {
-                              setModalState(() => _strictBlockNotifications = v);
-                              setState(() => _strictBlockNotifications = v);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  duration: const Duration(milliseconds: 700),
-                                  content: Text(v ? 'Notifications blocked' : 'Notifications allowed', style: GoogleFonts.inter()),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 1),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text('Block Phone Calls', style: GoogleFonts.inter(fontSize: 16)),
-                          ),
-                          Switch(
-                            value: _strictBlockCalls,
-                            onChanged: (v) {
-                              setModalState(() => _strictBlockCalls = v);
-                              setState(() => _strictBlockCalls = v);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  duration: const Duration(milliseconds: 700),
-                                  content: Text(v ? 'Phone calls blocked' : 'Phone calls allowed', style: GoogleFonts.inter()),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 1),
-                      const SizedBox(height: 20),
-                    ],
+                  const SizedBox(height: 8),
+                  Divider(
+                    height: 1,
+                    color: bottomScheme.outline.withOpacity(0.3),
                   ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          );
-        });
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Block All Notification',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  color: bottomScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                            Switch(
+                              value: _strictBlockNotifications,
+                              onChanged: (v) {
+                                setModalState(
+                                    () => _strictBlockNotifications = v);
+                                setState(
+                                    () => _strictBlockNotifications = v);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    duration:
+                                        const Duration(milliseconds: 700),
+                                    content: Text(
+                                      v
+                                          ? 'Notifications blocked'
+                                          : 'Notifications allowed',
+                                      style: GoogleFonts.inter(),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        Divider(
+                          height: 1,
+                          color: bottomScheme.outline.withOpacity(0.3),
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Block Phone Calls',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  color: bottomScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                            Switch(
+                              value: _strictBlockCalls,
+                              onChanged: (v) {
+                                setModalState(
+                                    () => _strictBlockCalls = v);
+                                setState(() => _strictBlockCalls = v);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    duration:
+                                        const Duration(milliseconds: 700),
+                                    content: Text(
+                                      v
+                                          ? 'Phone calls blocked'
+                                          : 'Phone calls allowed',
+                                      style: GoogleFonts.inter(),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        Divider(
+                          height: 1,
+                          color: bottomScheme.outline.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            );
+          },
+        );
       },
     );
   }
@@ -500,17 +813,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     }
 
     if (_running) {
-      _timer?.cancel();
-      _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-        setState(() {
-          _current += const Duration(seconds: 1);
-          if (_current >= _duration) {
-            _current = _duration;
-            _timer?.cancel();
-            _running = false;
-          }
-        });
-      });
+      _startTimer();
     }
   }
 
@@ -526,34 +829,39 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
     if (result == null) return;
 
+    Duration? newFocusDuration;
+    int? newBreakSeconds;
+    int? newSessions;
+
+    if (result['focus_total_seconds'] is int) {
+      newFocusDuration =
+          Duration(seconds: result['focus_total_seconds'] as int);
+    }
+
+    if (result['break_total_seconds'] is int) {
+      newBreakSeconds = result['break_total_seconds'] as int;
+    }
+
+    if (result['sessions'] is int) {
+      newSessions = (result['sessions'] as int).clamp(1, 10);
+    }
+
     setState(() {
-      if (result.containsKey('focus_total_minutes')) {
-        final int focusMinutes = result['focus_total_minutes'] as int? ?? _duration.inMinutes;
-        _duration = Duration(minutes: focusMinutes);
-      } else if (result.containsKey('focus_minutes')) {
-        final int focusMinutes = result['focus_minutes'] as int? ?? _duration.inMinutes;
-        _duration = Duration(minutes: focusMinutes);
+      if (newFocusDuration != null) _duration = newFocusDuration!;
+      if (newBreakSeconds != null) {
+        _shortBreakMinutes = (newBreakSeconds / 60).round().clamp(0, 45);
       }
-
-      if (result.containsKey('break_total_seconds')) {
-        final int breakSecs = result['break_total_seconds'] as int? ?? (_shortBreakMinutes * 60);
-        _shortBreakMinutes = (breakSecs / 60).round();
-      } else if (result.containsKey('break_minutes')) {
-        _shortBreakMinutes = result['break_minutes'] as int? ?? _shortBreakMinutes;
-      }
-
-      if (result.containsKey('sessions')) {
-        _sessions = (result['sessions'] as int?)?.clamp(1, 10) ?? _sessions;
-      }
-
-      _resetTimer();
+      if (newSessions != null) _sessions = newSessions;
     });
 
+    _resetTimer();
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         duration: const Duration(milliseconds: 900),
         content: Text(
-          'Timer updated — focus ${_duration.inMinutes}m • short ${_shortBreakMinutes}m • sessions ${_sessions}',
+          'Timer updated — focus ${_duration.inMinutes}m • short ${_shortBreakMinutes}m • sessions $_sessions',
           style: GoogleFonts.inter(),
         ),
       ),
@@ -562,39 +870,55 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     const double horizontalPadding = 16.0;
 
-    return SafeArea(
-      child: LayoutBuilder(builder: (context, constraints) {
-        final double screenWidth = constraints.maxWidth;
-        final double cardWidth = screenWidth - (horizontalPadding * 2);
-        // make cardHeight adaptive (max 420, min 260)
-        final double maxCardHeight = constraints.maxHeight * 0.55;
-        final double cardHeight = max(260.0, min(420.0, maxCardHeight));
-        final double circleBase = min(220.0, cardWidth * 0.68);
+    return Scaffold(
+      backgroundColor: scheme.background,
+      appBar: null,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double screenWidth = constraints.maxWidth;
+            final double cardWidth = screenWidth - (horizontalPadding * 2);
+            final double maxCardHeight = constraints.maxHeight * 0.55;
+            final double cardHeight =
+                max(260.0, min(420.0, maxCardHeight));
+            final double circleBase = min(220.0, cardWidth * 0.68);
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(0, 12.0, 0, 14.0),
-                child: _buildTopHeader(),
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: 16.0,
               ),
-              _buildTimerCard(cardWidth: cardWidth, circleBase: circleBase, cardHeight: cardHeight),
-              const SizedBox(height: 12),
-              _buildThreeOptionRow(cardWidth: cardWidth),
-              const SizedBox(height: 12),
-              _buildFocusToday(cardWidth: cardWidth),
-              const SizedBox(height: 20),
-              // padding di akhir agar tidak berhenti tiba-tiba saat scroll
-              SizedBox(height: max(32.0, constraints.maxHeight * 0.05)),
-            ],
-          ),
-        );
-      }),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding:
+                        const EdgeInsets.fromLTRB(0, 12.0, 0, 14.0),
+                    child: _buildTopHeader(),
+                  ),
+                  _buildTimerCard(
+                    cardWidth: cardWidth,
+                    circleBase: circleBase,
+                    cardHeight: cardHeight,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildThreeOptionRow(cardWidth: cardWidth),
+                  const SizedBox(height: 12),
+                  _buildFocusToday(cardWidth: cardWidth),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: max(32.0, constraints.maxHeight * 0.05),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }

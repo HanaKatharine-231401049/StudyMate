@@ -1,7 +1,6 @@
 // lib/screens/set_timer_screen.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../utils/colors.dart';
 
 class SetTimerScreen extends StatefulWidget {
   final int initialFocusHours;
@@ -25,11 +24,13 @@ class SetTimerScreen extends StatefulWidget {
 
 class _SetTimerScreenState extends State<SetTimerScreen> {
   int _selectedTab = 0;
-  int _focusHours = 0; 
+
+  int _focusHours = 0;
   int _focusMinutes = 25;
 
-  int _breakMinutes = 5; 
-  int _breakSeconds = 0; 
+  int _breakMinutes = 5;
+  int _breakSeconds = 0;
+
   int _sessions = 4;
 
   late TextEditingController _focusHoursCtrl;
@@ -41,13 +42,14 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
   @override
   void initState() {
     super.initState();
+
     _focusHours = widget.initialFocusHours.clamp(0, 2);
     _focusMinutes = widget.initialFocusMinutes.clamp(0, 59);
-    // batas jam dan menit
     if (_focusHours >= 2 && _focusMinutes > 45) _focusMinutes = 45;
 
     _breakMinutes = widget.initialBreakMinutes.clamp(0, 45);
     _breakSeconds = widget.initialBreakSeconds.clamp(0, 59);
+
     _sessions = widget.initialSessions.clamp(1, 10);
 
     _focusHoursCtrl = TextEditingController(text: '$_focusHours');
@@ -67,46 +69,33 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
     super.dispose();
   }
 
-  // shared decorations & border
-  OutlineInputBorder _inputBorder() {
+  OutlineInputBorder _inputBorder(ColorScheme scheme) {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: Color(0xFF03045E), width: 1),
+      borderSide: BorderSide(color: scheme.outline, width: 1),
     );
   }
 
-  InputDecoration _smallFieldDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: GoogleFonts.inter(),
-      filled: true,
-      fillColor: const Color(0xFFD9E9EC),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: _inputBorder(),
-      enabledBorder: _inputBorder(),
-      focusedBorder: _inputBorder(),
-    );
-  }
+  Widget _segmentedToggle(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
 
-  Widget _segmentedToggle() {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFFD9E9EC),
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF03045E), width: 1),
+        border: Border.all(color: scheme.outline, width: 1),
       ),
       child: Row(
         children: [
           Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() => _selectedTab = 0);
-              },
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => setState(() => _selectedTab = 0),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: _selectedTab == 0 ? const Color(0xFF03045E) : Colors.transparent,
+                  color: _selectedTab == 0 ? scheme.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
@@ -115,7 +104,7 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: _selectedTab == 0 ? Colors.white : const Color(0xFF03045E),
+                      color: _selectedTab == 0 ? scheme.onPrimary : scheme.primary,
                     ),
                   ),
                 ),
@@ -124,14 +113,13 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() => _selectedTab = 1);
-              },
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => setState(() => _selectedTab = 1),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: _selectedTab == 1 ? const Color(0xFF03045E) : Colors.transparent,
+                  color: _selectedTab == 1 ? scheme.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
@@ -140,7 +128,7 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: _selectedTab == 1 ? Colors.white : const Color(0xFF03045E),
+                      color: _selectedTab == 1 ? scheme.onPrimary : scheme.primary,
                     ),
                   ),
                 ),
@@ -153,53 +141,68 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
   }
 
   Widget _numberPicker({
+    required BuildContext context,
     required TextEditingController controller,
     required int min,
     required int max,
     required void Function(int) onChanged,
     double width = 86,
   }) {
+    final scheme = Theme.of(context).colorScheme;
+
+    int _read() => int.tryParse(controller.text) ?? min;
+
     return Container(
       width: width,
       decoration: BoxDecoration(
-        color: const Color(0xFFD9E9EC),
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF03045E), width: 1),
+        border: Border.all(color: scheme.outline, width: 1),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       child: Row(
         children: [
           // decrement
-          Builder(builder: (context) {
-            final cur = int.tryParse(controller.text) ?? min;
-            final canDec = cur > min;
-            return GestureDetector(
-              onTap: canDec
-                  ? () {
-                      final curVal = int.tryParse(controller.text) ?? min;
-                      final next = (curVal - 1).clamp(min, max);
-                      controller.text = '$next';
-                      onChanged(next);
-                    }
-                  : null,
-              child: Container(
-                width: 30,
-                height: 30,
-                decoration: const BoxDecoration(
-                  color: Colors.transparent,
-                  shape: BoxShape.circle,
+          Builder(
+            builder: (_) {
+              final cur = _read();
+              final canDec = cur > min;
+              return InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: canDec
+                    ? () {
+                        final next = (cur - 1).clamp(min, max);
+                        controller.text = '$next';
+                        onChanged(next);
+                      }
+                    : null,
+                child: SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: Icon(
+                    Icons.remove,
+                    size: 18,
+                    color: canDec
+                        ? scheme.onSurface.withOpacity(0.85)
+                        : scheme.onSurface.withOpacity(0.35),
+                  ),
                 ),
-                child: Icon(Icons.remove, size: 18, color: canDec ? Colors.black : Colors.grey),
-              ),
-            );
-          }),
+              );
+            },
+          ),
+
           const SizedBox(width: 6),
+
           // input
           Expanded(
             child: TextFormField(
               controller: controller,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700),
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: scheme.onSurface,
+              ),
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 isDense: true,
@@ -209,67 +212,95 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
               onChanged: (v) {
                 final parsed = int.tryParse(v) ?? min;
                 var clamped = parsed.clamp(min, max);
-                if (min == 0 && max == 59 && controller == _focusMinutesCtrl && _focusHours >= 2) {
+
+                // rule: if focusHours >= 2 then focusMinutes max 45
+                if (controller == _focusMinutesCtrl && _focusHours >= 2) {
                   clamped = parsed.clamp(0, 45);
                 }
+
                 if (clamped != parsed) {
                   controller.text = '$clamped';
+                  controller.selection = TextSelection.fromPosition(
+                    TextPosition(offset: controller.text.length),
+                  );
                 }
+
                 onChanged(clamped);
               },
             ),
           ),
+
           const SizedBox(width: 6),
-          Builder(builder: (context) {
-            final cur = int.tryParse(controller.text) ?? min;
-            final canInc = cur < max;
-            final effectiveCanInc = (controller == _focusMinutesCtrl && _focusHours >= 2) ? (cur < 45) : canInc;
-            final iconColor = effectiveCanInc ? Colors.black : Colors.grey;
-            return GestureDetector(
-              onTap: effectiveCanInc
-                  ? () {
-                      final curVal = int.tryParse(controller.text) ?? min;
-                      var next = (curVal + 1).clamp(min, max);
-                      if (controller == _focusMinutesCtrl && _focusHours >= 2) {
-                        next = (curVal + 1).clamp(0, 45);
+
+          // increment
+          Builder(
+            builder: (_) {
+              final cur = _read();
+              final canInc = cur < max;
+              final effectiveCanInc =
+                  (controller == _focusMinutesCtrl && _focusHours >= 2)
+                      ? (cur < 45)
+                      : canInc;
+
+              return InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: effectiveCanInc
+                    ? () {
+                        var next = (cur + 1).clamp(min, max);
+                        if (controller == _focusMinutesCtrl && _focusHours >= 2) {
+                          next = (cur + 1).clamp(0, 45);
+                        }
+                        controller.text = '$next';
+                        onChanged(next);
                       }
-                      controller.text = '$next';
-                      onChanged(next);
-                    }
-                  : null,
-              child: Container(
-                width: 30,
-                height: 30,
-                decoration: const BoxDecoration(
-                  color: Colors.transparent,
-                  shape: BoxShape.circle,
+                    : null,
+                child: SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: Icon(
+                    Icons.add,
+                    size: 18,
+                    color: effectiveCanInc
+                        ? scheme.onSurface.withOpacity(0.85)
+                        : scheme.onSurface.withOpacity(0.35),
+                  ),
                 ),
-                child: Icon(Icons.add, size: 18, color: iconColor),
-              ),
-            );
-          }),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _focusPanel() {
+  Widget _focusPanel(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     const double inputWidth = 120;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
-        Text('Set Focus Duration', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: const Color(0xFF03045E))),
+        Text(
+          'Set Focus Duration',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: scheme.primary,
+          ),
+        ),
         const SizedBox(height: 10),
-
         Row(
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Hours', style: GoogleFonts.inter(fontSize: 12)),
+                Text('Hours',
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: scheme.onBackground)),
                 const SizedBox(height: 6),
                 _numberPicker(
+                  context: context,
                   controller: _focusHoursCtrl,
                   min: 0,
                   max: 2,
@@ -292,9 +323,12 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Minutes', style: GoogleFonts.inter(fontSize: 12)),
+                Text('Minutes',
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: scheme.onBackground)),
                 const SizedBox(height: 6),
                 _numberPicker(
+                  context: context,
                   controller: _focusMinutesCtrl,
                   min: 0,
                   max: 59,
@@ -316,23 +350,34 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
     );
   }
 
-  Widget _breakPanel() {
+  Widget _breakPanel(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     const double inputWidth = 120;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
-        Text('Set Break Duration', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: const Color(0xFF03045E))),
+        Text(
+          'Set Break Duration',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: scheme.primary,
+          ),
+        ),
         const SizedBox(height: 10),
-
         Row(
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Minutes', style: GoogleFonts.inter(fontSize: 12)),
+                Text('Minutes',
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: scheme.onBackground)),
                 const SizedBox(height: 6),
                 _numberPicker(
+                  context: context,
                   controller: _breakMinutesCtrl,
                   min: 0,
                   max: 45,
@@ -347,13 +392,15 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
               ],
             ),
             const SizedBox(width: 14),
-
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Seconds', style: GoogleFonts.inter(fontSize: 12)),
+                Text('Seconds',
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: scheme.onBackground)),
                 const SizedBox(height: 6),
                 _numberPicker(
+                  context: context,
                   controller: _breakSecondsCtrl,
                   min: 0,
                   max: 59,
@@ -373,16 +420,26 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
     );
   }
 
-  Widget _sessionsControl() {
+  Widget _sessionsControl(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 14),
-        Text('Sessions', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: const Color(0xFF03045E))),
+        Text(
+          'Sessions',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: scheme.primary,
+          ),
+        ),
         const SizedBox(height: 8),
         Row(
           children: [
             _numberPicker(
+              context: context,
               controller: _sessionsCtrl,
               min: 1,
               max: 10,
@@ -394,7 +451,6 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
                 });
               },
             ),
-            const SizedBox(width: 12),
           ],
         ),
       ],
@@ -402,58 +458,77 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
   }
 
   void _saveAndReturn() {
-    final focusTotalMinutes = _focusHours * 60 + _focusMinutes;
-    final breakTotalSeconds = _breakMinutes * 60 + _breakSeconds;
+    final focusTotalSeconds = (_focusHours * 3600) + (_focusMinutes * 60);
+    final breakTotalSeconds = (_breakMinutes * 60) + _breakSeconds;
 
     Navigator.of(context).pop({
-      'mode': _selectedTab == 0 ? 'focus' : 'break',
-      'focus_hours': _focusHours,
-      'focus_minutes': _focusMinutes,
-      'focus_total_minutes': focusTotalMinutes,
-      'break_minutes': _breakMinutes,
-      'break_seconds': _breakSeconds,
+      // canonical values (Pomodoro should read these)
+      'focus_total_seconds': focusTotalSeconds,
       'break_total_seconds': breakTotalSeconds,
       'sessions': _sessions,
+
+      // optional breakdown (handy for UI later)
+      'focus_hours': _focusHours,
+      'focus_minutes': _focusMinutes,
+      'break_minutes': _breakMinutes,
+      'break_seconds': _breakSeconds,
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     const double pad = 16.0;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: scheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.background,
         elevation: 0,
         centerTitle: true,
-        title: Text('Set Timer', style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
-        iconTheme: const IconThemeData(color: Colors.black),
+        title: Text(
+          'Set Timer',
+          style: GoogleFonts.inter(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: scheme.onBackground,
+          ),
+        ),
+        iconTheme: IconThemeData(color: scheme.primary),
       ),
       body: SafeArea(
-
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: pad, vertical: 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _segmentedToggle(),
-            
-              if (_selectedTab == 0) _focusPanel() else _breakPanel(),
-              _sessionsControl(),
+              _segmentedToggle(context),
+              if (_selectedTab == 0) _focusPanel(context) else _breakPanel(context),
+              _sessionsControl(context),
               const SizedBox(height: 22),
-              // Save button
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _saveAndReturn,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: kAccentColor,
+                    backgroundColor: scheme.primary,
+                    foregroundColor: scheme.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                  child: Text('Save', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'Save',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
+
               const SizedBox(height: 28),
             ],
           ),
