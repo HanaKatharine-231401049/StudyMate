@@ -1,28 +1,44 @@
 // lib/main.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-import 'screens/splash_screen.dart';
 import 'providers/theme_provider.dart';
 import 'services/auth_service.dart';
+import 'screens/splash_screen.dart';
 import 'firebase_options.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Inisialisasi Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    if (kDebugMode) {
+      debugPrint('✅ Firebase initialized');
+      debugPrint('FirebaseAuth instance: ${FirebaseAuth.instance}');
+    }
+  } catch (e, st) {
+    // Jangan rethrow di sini; tampilkan pesan lewat log dan biarkan app tetap mencoba jalan.
+    // Jika kamu mau fatal error saat Firebase gagal, ubah menjadi `rethrow`.
+    debugPrint('❌ Firebase initialization error: $e\n$st');
+  }
 
+  // Pastikan provider berada di root aplikasi (di atas MyApp)
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(
+        ChangeNotifierProvider<ThemeProvider>(
           create: (_) => ThemeProvider(initialMode: ThemeMode.light),
         ),
-        ChangeNotifierProvider(
+        // Jika kamu ingin mengakses AuthService via Provider di UI, sediakan di sini.
+        // AuthService tidak wajib disediakan, tapi berguna.
+        ChangeNotifierProvider<AuthService>(
           create: (_) => AuthService(),
         ),
       ],
@@ -36,12 +52,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // BACA provider di dalam build (bukan di ctor)
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
       title: 'StudyMate',
       debugShowCheckedModeBanner: false,
-      themeMode: themeProvider.mode, // dikontrol oleh ThemeProvider
+      themeMode: themeProvider.mode,
 
       // Light theme
       theme: ThemeData(
@@ -82,10 +99,7 @@ class MyApp extends StatelessWidget {
         ),
         textTheme: GoogleFonts.interTextTheme(
           Theme.of(context).textTheme,
-        ).apply(
-          bodyColor: Colors.white,
-          displayColor: Colors.white,
-        ),
+        ).apply(bodyColor: Colors.white, displayColor: Colors.white),
         fontFamily: 'Inter',
         useMaterial3: false,
       ),

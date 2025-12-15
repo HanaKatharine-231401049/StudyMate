@@ -1,13 +1,13 @@
 // lib/screens/detail_note_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../utils/colors.dart';
 import '../models/note.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'home_screen.dart';
 
 class DetailNotePage extends StatelessWidget {
   final Note note;
+
   /// onEdit should return a Future that resolves to the result from edit page (or null).
   final Future<dynamic> Function()? onEdit;
   final Future<bool> Function()? onDelete;
@@ -21,22 +21,25 @@ class DetailNotePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
+      backgroundColor: scheme.background,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: scheme.primary),
         title: Text(
           'Note',
           style: GoogleFonts.montserrat(
             fontWeight: FontWeight.bold,
-            color: kAccentColor,
+            color: scheme.primary,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kAccentColor),
+          icon: Icon(Icons.arrow_back, color: scheme.primary),
           onPressed: () => Navigator.pop(context),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: kAccentColor),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -44,48 +47,58 @@ class DetailNotePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailItem('Title', note.title),
+              _buildDetailItem(context, 'Title', note.title),
               const SizedBox(height: 20),
-              _buildDetailItem('Date', note.date),
+              _buildDetailItem(context, 'Date', note.date),
               const SizedBox(height: 20),
-              _buildDetailItem('Description', note.description),
-              const SizedBox(height: 40), // Spacing ditambah
+              _buildDetailItem(context, 'Description', note.description),
+              const SizedBox(height: 40),
 
-              // tombol edit & delete dalam Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  _buildActionButton(Icons.edit, kAccentColor, () async {
-                    if (onEdit != null) {
-                      final res = await onEdit!.call();
-                      if (res != null) Navigator.pop(context, res);
-                    } else {
-                      Navigator.pop(context);
-                    }
-                  }),
-                  const SizedBox(width: 20),
-                  _buildActionButton(Icons.delete, kDeleteColor, () async {
-                    // Diubah seperti di schedule page
-                    if (onDelete != null) {
-                      final bool? deleted = await onDelete!.call();
-                      if (deleted == true) {
-                        Navigator.pop(context, {'deleted': true});
+                  _buildActionButton(
+                    context,
+                    Icons.edit,
+                    scheme.primary,
+                    scheme.onPrimary,
+                    () async {
+                      if (onEdit != null) {
+                        final res = await onEdit!.call();
+                        if (res != null) Navigator.pop(context, res);
                       } else {
-                        // jika batal, jangan pop atau lakukan apa-apa
+                        Navigator.pop(context);
                       }
-                    } else {
-                      // fallback: langsung pop
-                      Navigator.pop(context);
-                    }
-                  }),
+                    },
+                  ),
+                  const SizedBox(width: 20),
+                  _buildActionButton(
+                    context,
+                    Icons.delete,
+                    scheme.error,
+                    scheme.onError,
+                    () async {
+                      if (onDelete != null) {
+                        final bool? deleted = await onDelete!.call();
+                        if (deleted == true) {
+                          Navigator.pop(context, {'deleted': true});
+                        }
+                      } else {
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
                 ],
               ),
             ],
           ),
         ),
       ),
+
+      // leaving this as-is; if BottomNavBar still hardcodes colors,
+      // we can refactor it next with the same pattern.
       bottomNavigationBar: BottomNavBar(
-        selectedIndex: 1, // Note tab index
+        selectedIndex: 1,
         onTapIndex: (index) {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
@@ -98,7 +111,9 @@ class DetailNotePage extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailItem(String label, String value) {
+  Widget _buildDetailItem(BuildContext context, String label, String value) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -107,7 +122,7 @@ class DetailNotePage extends StatelessWidget {
           style: GoogleFonts.inter(
             fontWeight: FontWeight.bold,
             fontSize: 16,
-            color: kAccentColor,
+            color: scheme.onBackground, // label should be readable in both modes
           ),
         ),
         const SizedBox(height: 8),
@@ -115,27 +130,45 @@ class DetailNotePage extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            color: kBackgroundColor,
+            color: scheme.surface,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: kAccentColor.withOpacity(0.3)),
+            border: Border.all(color: scheme.outline),
           ),
-          child: Text(value, style: GoogleFonts.inter(fontSize: 16)),
+          child: Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              color: scheme.onSurface,
+            ),
+          ),
         ),
       ],
     );
   }
 
-  // helper action button - DISESUAIKAN SAMA SEPERTI SCHEDULE PAGE
-  Widget _buildActionButton(IconData icon, Color color, VoidCallback onPressed) {
+  Widget _buildActionButton(
+    BuildContext context,
+    IconData icon,
+    Color bgColor,
+    Color fgColor,
+    VoidCallback onPressed,
+  ) {
     return Container(
-      width: 60, // Ditambahkan width untuk konsistensi
-      height: 60, // Ditambahkan height untuk konsistensi
+      width: 60,
+      height: 60,
       decoration: BoxDecoration(
-        color: color,
+        color: bgColor,
         borderRadius: BorderRadius.circular(50),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          )
+        ],
       ),
       child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: 30),
+        icon: Icon(icon, color: fgColor, size: 30),
         onPressed: onPressed,
       ),
     );
