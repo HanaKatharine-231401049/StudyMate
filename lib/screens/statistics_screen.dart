@@ -1,3 +1,4 @@
+// lib/screens/statistics_screen.dart
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -592,10 +593,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                                                       final idx =
                                                           value.toInt();
                                                       final labels = [
-                                                        '1-7',
-                                                        '8-14',
-                                                        '15-21',
-                                                        '22-End'
+                                                        '1–7',
+                                                        '8–14',
+                                                        '15–21',
+                                                        '22–End'
                                                       ];
                                                       if (idx >= 0 &&
                                                           idx <
