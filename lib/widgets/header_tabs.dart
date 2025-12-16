@@ -1,7 +1,6 @@
 // lib/widgets/header_tabs.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../utils/colors.dart';
 
 class HeaderTabs extends StatelessWidget {
   final int selectedIndex;
@@ -17,32 +16,42 @@ class HeaderTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _buildHeaderTabButton(0, 'Schedule'),
+        _buildHeaderTabButton(context, 0, 'Schedule'),
         const SizedBox(width: 10),
-        _buildHeaderTabButton(1, 'Notes'),
+        _buildHeaderTabButton(context, 1, 'Notes'),
         const SizedBox(width: 10),
-        _buildHeaderTabButton(2, 'Assignment'),
+        _buildHeaderTabButton(context, 2, 'Assignment'),
       ],
     );
   }
 
-  Widget _buildHeaderTabButton(int index, String title) {
-    bool isSelected = selectedIndex == index;
+  Widget _buildHeaderTabButton(BuildContext context, int index, String title) {
+    final scheme = Theme.of(context).colorScheme;
+    final bool isSelected = selectedIndex == index;
+
+    final Color bgColor =
+        isSelected ? scheme.primary : scheme.surface;
+    final Color textColor =
+        isSelected ? scheme.onPrimary : scheme.onSurface;
+    final Color borderColor = isSelected
+        ? scheme.primary
+        : scheme.outline.withOpacity(0.7);
+
     return Expanded(
       child: GestureDetector(
         onTap: () => onTap(index),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? kInkTone : Colors.white,
+            color: bgColor,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: kInkTone.withOpacity(0.5)),
+            border: Border.all(color: borderColor, width: 1.2),
           ),
           child: Center(
             child: Text(
               title,
               style: GoogleFonts.inter(
-                color: isSelected ? Colors.white : kInkTone,
+                color: textColor,
                 fontWeight: FontWeight.bold,
               ),
             ),
