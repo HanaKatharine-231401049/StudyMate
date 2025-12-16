@@ -70,6 +70,7 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
     required ColorScheme scheme,
     Widget? suffixIcon,
     bool isTextArea = false,
+    String? hintText,
   }) {
     return InputDecoration(
       filled: true,
@@ -78,7 +79,11 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
           ? const EdgeInsets.all(15)
           : const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
       suffixIcon: suffixIcon,
-      hintStyle: GoogleFonts.inter(color: scheme.onSurface.withOpacity(0.6)),
+      hintText: hintText,
+      hintStyle: GoogleFonts.inter(
+        color: scheme.onSurface.withOpacity(0.6),
+        fontSize: 14,
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: scheme.outline, width: 1.5),
@@ -276,7 +281,10 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
               const SizedBox(height: 5),
               TextFormField(
                 controller: _titleCtrl,
-                decoration: _inputDecoration(scheme: scheme),
+                decoration: _inputDecoration(
+                  scheme: scheme,
+                  hintText: 'Enter note title',
+                ),
                 style: GoogleFonts.inter(color: scheme.onSurface),
               ),
               const SizedBox(height: 20),
@@ -288,6 +296,7 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
                 readOnly: true,
                 decoration: _inputDecoration(
                   scheme: scheme,
+                  hintText: 'Select date',
                   suffixIcon: CalendarPickerButton(
                     initialDateString: _dateCtrl.text.isEmpty ? null : _dateCtrl.text,
                     onDateSelected: (formatted) {
@@ -306,7 +315,11 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
               TextFormField(
                 controller: _descCtrl,
                 maxLines: 4,
-                decoration: _inputDecoration(scheme: scheme, isTextArea: true),
+                decoration: _inputDecoration(
+                  scheme: scheme, 
+                  isTextArea: true,
+                  hintText: 'Enter note description (optional)',
+                ),
                 style: GoogleFonts.inter(color: scheme.onSurface),
               ),
               const SizedBox(height: 40),
