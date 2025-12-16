@@ -29,7 +29,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   bool _isFocusPhase = true; // true = focus, false = break
   Timer? _timer;
 
-  // Strict mode
+  // Strict mode flags (in-app only)
   bool _strictBlockNotifications = false;
   bool _strictBlockCalls = false;
 
@@ -37,7 +37,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   int _shortBreakMinutes = 5;
   int _sessions = 4;
 
-  // ----- Focus Today state (loaded only on open + after focus completed) -----
+  // Focus Today state (loaded only on open + after focus completed)
   int _focusTodayMinutes = 0;
   bool _focusTodayLoading = true;
 
@@ -51,6 +51,33 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helper: themed SnackBar (works for light/dark)
+  // ---------------------------------------------------------------------------
+  void _showThemedSnackBar(
+    String message, {
+    Duration duration = const Duration(milliseconds: 900),
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: duration,
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: scheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.inter(
+            color: scheme.onSurface,
+          ),
+        ),
+      ),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -71,8 +98,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     });
 
     try {
-      final minutes = await _focusLogService
-          .totalFocusMinutesForDay(user.uid, DateTime.now());
+      final minutes =
+          await _focusLogService.totalFocusMinutesForDay(user.uid, DateTime.now());
 
       if (!mounted) return;
       setState(() {
@@ -86,13 +113,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         _focusTodayLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Failed to load today\'s focus stats.',
-            style: GoogleFonts.inter(),
-          ),
-        ),
+      _showThemedSnackBar(
+        'Failed to load today\'s focus stats.',
+        duration: const Duration(seconds: 3),
       );
     }
   }
@@ -186,14 +209,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     _running = true;
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 2),
-          content: Text(
-            'Focus session completed! Time for a $_shortBreakMinutes min break.',
-            style: GoogleFonts.inter(),
-          ),
-        ),
+      _showThemedSnackBar(
+        'Focus session completed! Time for a $_shortBreakMinutes min break.',
+        duration: const Duration(seconds: 2),
       );
     }
 
@@ -208,14 +226,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     _running = false;
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 2),
-          content: Text(
-            'Break finished! Ready for the next focus session?',
-            style: GoogleFonts.inter(),
-          ),
-        ),
+      _showThemedSnackBar(
+        'Break finished! Ready for the next focus session?',
+        duration: const Duration(seconds: 2),
       );
     }
   }
@@ -236,14 +249,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       await _loadTodayFocusFromDb();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 3),
-          content: Text(
-            'Error logging focus session: $e',
-            style: GoogleFonts.inter(),
-          ),
-        ),
+      _showThemedSnackBar(
+        'Error logging focus session: $e',
+        duration: const Duration(seconds: 3),
       );
     }
   }
@@ -520,8 +528,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
   }
 
-  /// Focus Today card – now using cached state that refreshes only
-  /// on screen open + after focus session completes.
+  /// Focus Today card – using cached state, refreshed only on screen open
+  /// and after focus session completes.
   Widget _buildFocusToday({required double cardWidth}) {
     return _focusTodayCard(
       cardWidth: cardWidth,
@@ -626,7 +634,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   }
 
   void _showStrictModeSheet() {
-    final scheme = Theme.of(context).colorScheme;
+    final baseTheme = Theme.of(context);
+    final scheme = baseTheme.colorScheme;
 
     showModalBottomSheet(
       context: context,
@@ -636,154 +645,158 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final bottomScheme = Theme.of(context).colorScheme;
+        final bottomTheme = baseTheme.copyWith(
+          scaffoldBackgroundColor: scheme.surface,
+          canvasColor: scheme.surface,
+          iconTheme: baseTheme.iconTheme.copyWith(color: scheme.onSurface),
+          textTheme: baseTheme.textTheme.apply(
+            bodyColor: scheme.onSurface,
+            displayColor: scheme.onSurface,
+          ),
+        );
 
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 12),
-                  Container(
-                    width: 48,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: bottomScheme.outline.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(4),
+        return Theme(
+          data: bottomTheme,
+          child: StatefulBuilder(
+            builder: (context, setModalState) {
+              final bottomScheme = Theme.of(context).colorScheme;
+
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 48,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: bottomScheme.outline.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 36),
-                        Expanded(
-                          child: Center(
-                            child: Text(
-                              'Strict Mode',
-                              style: GoogleFonts.inter(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 36),
+                          Expanded(
+                            child: Center(
+                              child: Text(
+                                'Strict Mode',
+                                style: GoogleFonts.inter(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: bottomScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => Navigator.of(context).pop(),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              alignment: Alignment.center,
+                              child: Icon(
+                                Icons.clear,
+                                size: 20,
                                 color: bottomScheme.onSurface,
                               ),
                             ),
                           ),
-                        ),
-                        GestureDetector(
-                          onTap: () => Navigator.of(context).pop(),
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            alignment: Alignment.center,
-                            child: Icon(
-                              Icons.clear,
-                              size: 20,
-                              color: bottomScheme.onSurface,
-                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Divider(
+                      height: 1,
+                      color: bottomScheme.outline.withOpacity(0.3),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Block All Notification',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    color: bottomScheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                              Switch(
+                                value: _strictBlockNotifications,
+                                onChanged: (v) {
+                                  setModalState(
+                                      () => _strictBlockNotifications = v);
+                                  setState(
+                                      () => _strictBlockNotifications = v);
+
+                                  _showThemedSnackBar(
+                                    v
+                                        ? 'Strict Mode: notifications blocked (in-app)'
+                                        : 'Strict Mode: notifications allowed',
+                                    duration:
+                                        const Duration(milliseconds: 700),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Divider(
-                    height: 1,
-                    color: bottomScheme.outline.withOpacity(0.3),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Block All Notification',
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  color: bottomScheme.onSurface,
+                          Divider(
+                            height: 1,
+                            color: bottomScheme.outline.withOpacity(0.3),
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Block Phone Calls',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    color: bottomScheme.onSurface,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Switch(
-                              value: _strictBlockNotifications,
-                              onChanged: (v) {
-                                setModalState(
-                                    () => _strictBlockNotifications = v);
-                                setState(
-                                    () => _strictBlockNotifications = v);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
+                              Switch(
+                                value: _strictBlockCalls,
+                                onChanged: (v) {
+                                  setModalState(() => _strictBlockCalls = v);
+                                  setState(() => _strictBlockCalls = v);
+
+                                  _showThemedSnackBar(
+                                    v
+                                        ? 'Strict Mode: phone calls blocked (in-app)'
+                                        : 'Strict Mode: phone calls allowed',
                                     duration:
                                         const Duration(milliseconds: 700),
-                                    content: Text(
-                                      v
-                                          ? 'Notifications blocked'
-                                          : 'Notifications allowed',
-                                      style: GoogleFonts.inter(),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                        Divider(
-                          height: 1,
-                          color: bottomScheme.outline.withOpacity(0.3),
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Block Phone Calls',
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  color: bottomScheme.onSurface,
-                                ),
+                                  );
+                                },
                               ),
-                            ),
-                            Switch(
-                              value: _strictBlockCalls,
-                              onChanged: (v) {
-                                setModalState(
-                                    () => _strictBlockCalls = v);
-                                setState(() => _strictBlockCalls = v);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    duration:
-                                        const Duration(milliseconds: 700),
-                                    content: Text(
-                                      v
-                                          ? 'Phone calls blocked'
-                                          : 'Phone calls allowed',
-                                      style: GoogleFonts.inter(),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                        Divider(
-                          height: 1,
-                          color: bottomScheme.outline.withOpacity(0.3),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
+                            ],
+                          ),
+                          Divider(
+                            height: 1,
+                            color: bottomScheme.outline.withOpacity(0.3),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            );
-          },
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              );
+            },
+          ),
         );
       },
     );
@@ -849,22 +862,16 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     setState(() {
       if (newFocusDuration != null) _duration = newFocusDuration!;
       if (newBreakSeconds != null) {
-        _shortBreakMinutes = (newBreakSeconds / 60).round().clamp(0, 45);
+        _shortBreakMinutes = (newBreakSeconds! / 60).round().clamp(0, 45);
       }
-      if (newSessions != null) _sessions = newSessions;
+      if (newSessions != null) _sessions = newSessions!;
     });
 
     _resetTimer();
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(milliseconds: 900),
-        content: Text(
-          'Timer updated — focus ${_duration.inMinutes}m • short ${_shortBreakMinutes}m • sessions $_sessions',
-          style: GoogleFonts.inter(),
-        ),
-      ),
+    _showThemedSnackBar(
+      'Timer updated — focus ${_duration.inMinutes}m • short $_shortBreakMinutes m • sessions $_sessions',
     );
   }
 
