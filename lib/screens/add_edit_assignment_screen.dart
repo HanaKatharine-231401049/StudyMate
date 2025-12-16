@@ -29,9 +29,7 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
 
   late final String uid;
   bool _isSaving = false;
-
-  /// Selected time in this screen (mapped to timeController & saved as String)
-  TimeOfDay? _selectedTime;
+  bool _isTimeValid = true;
 
   @override
   void initState() {
@@ -61,9 +59,9 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
       text: widget.isEditing && a != null ? a.description : '',
     );
 
-    // If editing, try to parse existing time string into TimeOfDay
+    // Validasi awal untuk waktu
     if (widget.isEditing && a != null && a.time.isNotEmpty) {
-      _selectedTime = _parseTimeOfDay(a.time);
+      _validateTimeFormat(a.time);
     }
   }
 
@@ -103,37 +101,53 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
     );
   }
 
-  /// Parse "18:00" or "9:30" into TimeOfDay
+  /// Validasi format waktu HH:mm
+  void _validateTimeFormat(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) {
+      setState(() => _isTimeValid = true);
+      return;
+    }
+
+    // Pattern untuk format HH:mm
+    final pattern = RegExp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$');
+    final pattern2 = RegExp(r'^[0-9]{1,2}:[0-9]{2}$');
+    
+    bool isValid = pattern.hasMatch(trimmed) || pattern2.hasMatch(trimmed);
+    
+    // Validasi tambahan untuk memastikan jam 0-23 dan menit 0-59
+    if (isValid) {
+      final parts = trimmed.split(':');
+      if (parts.length == 2) {
+        final hour = int.tryParse(parts[0]);
+        final minute = int.tryParse(parts[1]);
+        
+        if (hour == null || minute == null) {
+          isValid = false;
+        } else if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+          isValid = false;
+        }
+      }
+    }
+    
+    setState(() => _isTimeValid = isValid);
+  }
+
+  /// Parse "18:00" atau "9:30" menjadi TimeOfDay
   TimeOfDay? _parseTimeOfDay(String input) {
-    final parts = input.split(':');
+    // Bersihkan input dari spasi
+    final cleaned = input.trim();
+    if (cleaned.isEmpty) return null;
+    
+    final parts = cleaned.split(':');
     if (parts.length != 2) return null;
+    
     final h = int.tryParse(parts[0]);
     final m = int.tryParse(parts[1]);
     if (h == null || m == null) return null;
     if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+    
     return TimeOfDay(hour: h, minute: m);
-  }
-
-  /// Format TimeOfDay as "HH:mm"
-  String _formatTimeOfDay(TimeOfDay time) {
-    final h = time.hour.toString().padLeft(2, '0');
-    final m = time.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
-
-  Future<void> _pickTime() async {
-    final initial = _selectedTime ?? TimeOfDay.now();
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initial,
-    );
-
-    if (picked != null) {
-      setState(() {
-        _selectedTime = picked;
-        timeController.text = _formatTimeOfDay(picked);
-      });
-    }
   }
 
   Future<void> _saveAssignment() async {
@@ -156,13 +170,10 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
       return;
     }
 
-    // 2) Determine the TIME part (prefer selectedTime, fallback to parsing string)
-    TimeOfDay? effectiveTime = _selectedTime;
-    if (effectiveTime == null && timeStr.isNotEmpty) {
-      effectiveTime = _parseTimeOfDay(timeStr);
-    }
-    if (effectiveTime == null) {
-      _showDialog('Invalid time. Please pick a valid time.');
+    // 2) Parse the TIME part
+    final timeOfDay = _parseTimeOfDay(timeStr);
+    if (timeOfDay == null) {
+      _showDialog('Invalid time format. Please use format HH:mm (e.g., 18:00 or 9:30)');
       return;
     }
 
@@ -171,8 +182,8 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
       dateOnly.year,
       dateOnly.month,
       dateOnly.day,
-      effectiveTime.hour,
-      effectiveTime.minute,
+      timeOfDay.hour,
+      timeOfDay.minute,
     );
 
     setState(() => _isSaving = true);
@@ -261,7 +272,10 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
               const SizedBox(height: 5),
               TextFormField(
                 controller: titleController,
-                decoration: _inputDecoration(context),
+                decoration: _inputDecoration(
+                  context,
+                  hintText: 'Enter assignment title',
+                ),
                 style: GoogleFonts.inter(color: scheme.onSurface),
               ),
               const SizedBox(height: 20),
@@ -273,6 +287,7 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
                 readOnly: true,
                 decoration: _inputDecoration(
                   context,
+                  hintText: 'Select date',
                   suffixIcon: CalendarPickerButton(
                     initialDateString:
                         dateController.text.isEmpty ? null : dateController.text,
@@ -293,16 +308,17 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
               const SizedBox(height: 5),
               TextFormField(
                 controller: timeController,
-                readOnly: true,
-                onTap: _pickTime,
                 decoration: _inputDecoration(
                   context,
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.access_time),
-                    onPressed: _pickTime,
-                  ),
+                  hintText: 'HH:mm (e.g., 18:00 or 9:30)',
+                  errorText: _isTimeValid ? null : 'Format harus HH:mm (0-23:0-59)',
                 ),
                 style: GoogleFonts.inter(color: scheme.onSurface),
+                keyboardType: TextInputType.datetime,
+                textInputAction: TextInputAction.next,
+                onChanged: (value) {
+                  _validateTimeFormat(value);
+                },
               ),
               const SizedBox(height: 20),
 
@@ -312,7 +328,11 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
               TextFormField(
                 controller: descriptionController,
                 maxLines: 4,
-                decoration: _inputDecoration(context, isTextArea: true),
+                decoration: _inputDecoration(
+                  context, 
+                  isTextArea: true,
+                  hintText: 'Enter assignment description (optional)',
+                ),
                 style: GoogleFonts.inter(color: scheme.onSurface),
               ),
               const SizedBox(height: 40),
@@ -322,7 +342,7 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
                 child: SizedBox(
                   width: 110,
                   child: ElevatedButton(
-                    onPressed: _isSaving ? null : _saveAssignment,
+                    onPressed: (_isSaving || !_isTimeValid) ? null : _saveAssignment,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: scheme.primary,
                       foregroundColor: scheme.onPrimary,
@@ -358,6 +378,8 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
     BuildContext context, {
     Widget? suffixIcon,
     bool isTextArea = false,
+    String? hintText,
+    String? errorText,
   }) {
     final scheme = Theme.of(context).colorScheme;
 
@@ -368,7 +390,16 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
           ? const EdgeInsets.all(15)
           : const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
       suffixIcon: suffixIcon,
-      hintStyle: GoogleFonts.inter(color: scheme.onSurface.withOpacity(0.6)),
+      hintText: hintText,
+      hintStyle: GoogleFonts.inter(
+        color: scheme.onSurface.withOpacity(0.6),
+        fontSize: 14,
+      ),
+      errorText: errorText,
+      errorStyle: GoogleFonts.inter(
+        color: scheme.error,
+        fontSize: 12,
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: scheme.outline, width: 1.5),
@@ -380,6 +411,14 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: scheme.primary, width: 2.0),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: scheme.error, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: scheme.error, width: 2.0),
       ),
     );
   }

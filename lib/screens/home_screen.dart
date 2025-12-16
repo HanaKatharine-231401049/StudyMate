@@ -57,6 +57,10 @@ class _HomePageState extends State<HomePage> {
   // add options state
   bool _showAddOptions = false;
 
+  // Cache untuk pending tasks count
+  int _cachedPendingTasks = 0;
+  bool _isFirstLoad = true;
+
   late final String uid;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
@@ -125,27 +129,82 @@ class _HomePageState extends State<HomePage> {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _allAssignmentsStream() {
-    final col = _db.collection('users').doc(uid).collection('assignments');
-    return col.orderBy('dueDate', descending: false).snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _todayAssignmentsStream() {
-    final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day);
-    final end = start.add(const Duration(days: 1));
-
     return _db
         .collection('users')
         .doc(uid)
         .collection('assignments')
-        .where('dueDate', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-        .where('dueDate', isLessThan: Timestamp.fromDate(end))
-        .where('isFinished', isEqualTo: false)
+        .orderBy('dueDate', descending: false)
+        .snapshots();
+  }
+
+  // Stream untuk semua assignments (tanpa filter kompleks)
+  Stream<QuerySnapshot<Map<String, dynamic>>> _allAssignmentsSimpleStream() {
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('assignments')
         .snapshots();
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> _userDocStream() {
     return _db.collection('users').doc(uid).snapshots();
+  }
+
+  // ---------- Helper untuk menghitung pending tasks ----------
+  int _countPendingTasks(QuerySnapshot<Map<String, dynamic>>? snapshot) {
+    if (snapshot == null) return _cachedPendingTasks;
+    
+    int count = 0;
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final isFinished = data['isFinished'] as bool? ?? false;
+      if (!isFinished) {
+        count++;
+      }
+    }
+    
+    // Update cache
+    _cachedPendingTasks = count;
+    _isFirstLoad = false;
+    
+    return count;
+  }
+
+  // ---------- Helper untuk membangun task counter ----------
+  Widget _buildTaskCounter(String username, int pendingTasks, ColorScheme scheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          'Hello $username',
+          style: GoogleFonts.montserrat(
+            fontSize: 18,
+            fontWeight: FontWeight.normal,
+            color: scheme.onBackground,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'You\'ve got',
+          style: GoogleFonts.montserratAlternates(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: scheme.onBackground,
+          ),
+        ),
+        Text(
+          '$pendingTasks tasks to do',
+          style: GoogleFonts.montserratAlternates(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: scheme.primary,
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
   }
 
   // ---------- Delete handlers ----------
@@ -349,47 +408,25 @@ class _HomePageState extends State<HomePage> {
                 stream: _userDocStream(),
                 builder: (context, userSnap) {
                   final userData = userSnap.data?.data();
-                  final username =
-                      (userData?['username'] as String?) ?? 'User';
+                  final username = (userData?['username'] as String?) ?? 'User';
 
                   return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: _todayAssignmentsStream(),
+                    stream: _allAssignmentsSimpleStream(),
                     builder: (context, snap) {
-                      final totalTasks = snap.data?.docs.length ?? 0;
+                      // Gunakan cached value selama loading pertama kali
+                      if (_isFirstLoad && snap.connectionState == ConnectionState.waiting) {
+                        return _buildTaskCounter(username, _cachedPendingTasks, scheme);
+                      }
+                      
+                      // Jika ada error, tetap tampilkan cached value
+                      if (snap.hasError) {
+                        print('Error loading assignments: ${snap.error}');
+                        return _buildTaskCounter(username, _cachedPendingTasks, scheme);
+                      }
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 8),
-                          Text(
-                            'Hello $username',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 18,
-                              fontWeight: FontWeight.normal,
-                              color: scheme.onBackground,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'You\'ve got',
-                            style: GoogleFonts.montserratAlternates(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: scheme.onBackground,
-                            ),
-                          ),
-                          Text(
-                            '$totalTasks tasks today',
-                            style: GoogleFonts.montserratAlternates(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: scheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      );
+                      // Hitung pending tasks dan update cache
+                      final pendingTasks = _countPendingTasks(snap.data);
+                      return _buildTaskCounter(username, pendingTasks, scheme);
                     },
                   );
                 },
@@ -506,6 +543,8 @@ class _HomePageState extends State<HomePage> {
                             ),
                           );
                         }
+                        
+                        // Untuk schedule, kita bisa tampilkan loading
                         if (!snap.hasData) {
                           return Center(
                             child: CircularProgressIndicator(
@@ -541,6 +580,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                           );
                         }
+                        
                         if (!snap.hasData) {
                           return Center(
                             child: CircularProgressIndicator(
@@ -575,15 +615,10 @@ class _HomePageState extends State<HomePage> {
                       stream: _allAssignmentsStream(),
                       builder: (context, snap) {
                         if (snap.hasError) {
-                          // If ordering by dueDate fails, fallback to createdAt
+                          // If ordering by dueDate fails, fallback to simple stream
                           return StreamBuilder<
                               QuerySnapshot<Map<String, dynamic>>>(
-                            stream: _db
-                                .collection('users')
-                                .doc(uid)
-                                .collection('assignments')
-                                .orderBy('createdAt', descending: true)
-                                .snapshots(),
+                            stream: _allAssignmentsSimpleStream(),
                             builder: (context, snap2) {
                               if (!snap2.hasData) {
                                 return Center(
@@ -600,11 +635,9 @@ class _HomePageState extends State<HomePage> {
                                 assignments: assignments,
                                 selectedSubTabIndex: _assignmentTabIndex,
                                 onSubTabChanged: (i) =>
-                                    setState(
-                                        () => _assignmentTabIndex = i),
+                                    setState(() => _assignmentTabIndex = i),
                                 onTapAssignment: _openAssignmentDetail,
-                                onToggleStatus: (a) =>
-                                    _toggleAssignmentDone(a),
+                                onToggleStatus: _toggleAssignmentDone,
                               );
                             },
                           );
@@ -628,8 +661,7 @@ class _HomePageState extends State<HomePage> {
                           onSubTabChanged: (i) =>
                               setState(() => _assignmentTabIndex = i),
                           onTapAssignment: _openAssignmentDetail,
-                          onToggleStatus: (a) =>
-                              _toggleAssignmentDone(a),
+                          onToggleStatus: _toggleAssignmentDone,
                         );
                       },
                     ),
@@ -654,7 +686,7 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
 
-                    // ---------------- FAB + ADD OPTIONS ----------------
+          // ---------------- FAB + ADD OPTIONS ----------------
           AddOptionsFab(
             showAddOptions: _showAddOptions,
             onToggle: _toggleAddOptions,

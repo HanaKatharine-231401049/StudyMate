@@ -29,6 +29,7 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
 
   final uid = FirebaseAuth.instance.currentUser!.uid;
   bool _isSaving = false;
+  bool _isTimeValid = true;
 
   @override
   void initState() {
@@ -57,6 +58,11 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
           ? widget.schedule!.description
           : '',
     );
+
+    // Validasi awal untuk waktu
+    if (widget.isEditing && widget.schedule != null && widget.schedule!.time.isNotEmpty) {
+      _validateTimeRange(widget.schedule!.time);
+    }
   }
 
   @override
@@ -76,7 +82,7 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
       builder: (_) => AlertDialog(
         backgroundColor: scheme.surface,
         title: Text(
-          'Validation Error',
+          'Validation',
           style: GoogleFonts.inter(color: scheme.onSurface),
         ),
         content: Text(
@@ -94,6 +100,57 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
         ],
       ),
     );
+  }
+
+  /// Validasi format waktu range HH:mm - HH:mm
+  void _validateTimeRange(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) {
+      setState(() => _isTimeValid = true);
+      return;
+    }
+
+    // Pattern untuk format waktu range: "HH:mm - HH:mm"
+    // Mendukung format seperti: "10:30 - 11:20", "09:00-12:00", "14:00 - 15:30"
+    final pattern = RegExp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]\s*[-–]\s*([0-1]?[0-9]|2[0-3]):[0-5][0-9]$');
+    
+    bool isValid = pattern.hasMatch(trimmed);
+    
+    // Validasi tambahan untuk memastikan format jam yang benar
+    if (isValid) {
+      // Bersihkan spasi dan ambil bagian waktu
+      final cleanTime = trimmed.replaceAll(RegExp(r'\s+'), '');
+      final separator = cleanTime.contains('–') ? '–' : '-';
+      final parts = cleanTime.split(separator);
+      
+      if (parts.length == 2) {
+        final startParts = parts[0].split(':');
+        final endParts = parts[1].split(':');
+        
+        if (startParts.length == 2 && endParts.length == 2) {
+          final startHour = int.tryParse(startParts[0]);
+          final startMinute = int.tryParse(startParts[1]);
+          final endHour = int.tryParse(endParts[0]);
+          final endMinute = int.tryParse(endParts[1]);
+          
+          if (startHour == null || startMinute == null || 
+              endHour == null || endMinute == null) {
+            isValid = false;
+          } else if (startHour < 0 || startHour > 23 || 
+                     startMinute < 0 || startMinute > 59 ||
+                     endHour < 0 || endHour > 23 || 
+                     endMinute < 0 || endMinute > 59) {
+            isValid = false;
+          }
+        } else {
+          isValid = false;
+        }
+      } else {
+        isValid = false;
+      }
+    }
+    
+    setState(() => _isTimeValid = isValid);
   }
 
   DateTime? _parseDate(String input) {
@@ -187,6 +244,12 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
       return;
     }
 
+    // Validasi format waktu sebelum menyimpan
+    if (!_isTimeValid) {
+      _showDialog('Invalid time format. Please use format HH:mm - HH:mm (e.g., 10:30 - 11:20)');
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
@@ -245,8 +308,9 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
     return Scaffold(
       backgroundColor: scheme.background,
       appBar: AppBar(
-        backgroundColor: scheme.background,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        iconTheme: IconThemeData(color: scheme.primary),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: scheme.primary),
           onPressed: () => Navigator.pop(context),
@@ -260,78 +324,104 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20.0),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _label('Title', scheme),
-              _field(
-                context,
+              Text('Title', style: GoogleFonts.inter(color: scheme.onBackground)),
+              const SizedBox(height: 5),
+              TextFormField(
                 controller: titleController,
-                hint: 'Enter schedule title',
+                decoration: _inputDecoration(
+                  context,
+                  hintText: 'Enter schedule title',
+                ),
+                style: GoogleFonts.inter(color: scheme.onSurface),
               ),
               const SizedBox(height: 20),
 
-              _label('Date', scheme),
-              _field(
-                context,
+              Text('Date', style: GoogleFonts.inter(color: scheme.onBackground)),
+              const SizedBox(height: 5),
+              TextFormField(
                 controller: dateController,
                 readOnly: true,
-                hint: 'Select date',
-                suffix: CalendarPickerButton(
-                  initialDateString:
-                      dateController.text.isEmpty ? null : dateController.text,
-                  onDateSelected: (v) => setState(() {
-                    dateController.text = v;
-                  }),
-                  size: 36,
-                  filled: true,
+                decoration: _inputDecoration(
+                  context,
+                  hintText: 'Select date',
+                  suffixIcon: CalendarPickerButton(
+                    initialDateString:
+                        dateController.text.isEmpty ? null : dateController.text,
+                    onDateSelected: (formatted) {
+                      setState(() {
+                        dateController.text = formatted;
+                      });
+                    },
+                    size: 44,
+                    filled: true,
+                  ),
                 ),
+                style: GoogleFonts.inter(color: scheme.onSurface),
               ),
               const SizedBox(height: 20),
 
-              _label('Time', scheme),
-              _field(
-                context,
+              Text('Time', style: GoogleFonts.inter(color: scheme.onBackground)),
+              const SizedBox(height: 5),
+              TextFormField(
                 controller: timeController,
-                hint: 'Enter time (e.g., 10:30 - 11:20)',
+                decoration: _inputDecoration(
+                  context,
+                  hintText: 'HH:mm - HH:mm (e.g., 10:30 - 11:20)',
+                  errorText: _isTimeValid ? null : 'Format harus HH:mm - HH:mm',
+                ),
+                style: GoogleFonts.inter(color: scheme.onSurface),
+                keyboardType: TextInputType.datetime,
+                textInputAction: TextInputAction.next,
+                onChanged: (value) {
+                  _validateTimeRange(value);
+                },
               ),
               const SizedBox(height: 20),
 
-              _label('Description', scheme),
-              _field(
-                context,
+              Text('Description',
+                  style: GoogleFonts.inter(color: scheme.onBackground)),
+              const SizedBox(height: 5),
+              TextFormField(
                 controller: descriptionController,
-                hint: 'Enter schedule description (optional)',
                 maxLines: 4,
+                decoration: _inputDecoration(
+                  context,
+                  isTextArea: true,
+                  hintText: 'Enter schedule description (optional)',
+                ),
+                style: GoogleFonts.inter(color: scheme.onSurface),
               ),
               const SizedBox(height: 40),
 
               Align(
                 alignment: Alignment.centerRight,
                 child: SizedBox(
-                  width: 120,
+                  width: 110,
                   child: ElevatedButton(
-                    onPressed: _isSaving ? null : _saveSchedule,
+                    onPressed: (_isSaving || !_isTimeValid) ? null : _saveSchedule,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: scheme.primary,
                       foregroundColor: scheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     child: _isSaving
                         ? const SizedBox(
-                            width: 18,
                             height: 18,
+                            width: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(
                             'Save',
                             style: GoogleFonts.montserrat(
-                              fontSize: 16,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -345,58 +435,51 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
     );
   }
 
-  Widget _label(String text, ColorScheme scheme) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: GoogleFonts.inter(
-          fontWeight: FontWeight.w600,
-          fontSize: 16,
-          color: scheme.onBackground,
-        ),
-      ),
-    );
-  }
-
-  Widget _field(
+  InputDecoration _inputDecoration(
     BuildContext context, {
-    required TextEditingController controller,
-    String? hint,
-    bool readOnly = false,
-    int maxLines = 1,
-    Widget? suffix,
+    Widget? suffixIcon,
+    bool isTextArea = false,
+    String? hintText,
+    String? errorText,
   }) {
     final scheme = Theme.of(context).colorScheme;
 
-    return TextFormField(
-      controller: controller,
-      readOnly: readOnly,
-      maxLines: maxLines,
-      style: GoogleFonts.inter(color: scheme.onSurface),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: scheme.surface,
-        hintText: hint,
-        hintStyle:
-            GoogleFonts.inter(color: scheme.onSurface.withOpacity(0.6)),
-        suffixIcon: suffix,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: scheme.outline),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: scheme.outline),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: scheme.primary, width: 2),
-        ),
+    return InputDecoration(
+      filled: true,
+      fillColor: scheme.surface,
+      contentPadding: isTextArea
+          ? const EdgeInsets.all(15)
+          : const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+      suffixIcon: suffixIcon,
+      hintText: hintText,
+      hintStyle: GoogleFonts.inter(
+        color: scheme.onSurface.withOpacity(0.6),
+        fontSize: 14,
+      ),
+      errorText: errorText,
+      errorStyle: GoogleFonts.inter(
+        color: scheme.error,
+        fontSize: 12,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: scheme.outline, width: 1.5),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: scheme.outline, width: 1.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: scheme.primary, width: 2.0),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: scheme.error, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: scheme.error, width: 2.0),
       ),
     );
   }
