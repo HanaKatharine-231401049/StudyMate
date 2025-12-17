@@ -77,127 +77,124 @@ class MoodScreen extends StatelessWidget {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+@override
+Widget build(BuildContext context) {
+  final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: scheme.background,
-
-      appBar: AppBar(
-        backgroundColor: scheme.background,
-        elevation: 0,
-        title: const Text(''),
-        automaticallyImplyLeading: true,
-        iconTheme: IconThemeData(color: scheme.primary),
-      ),
-
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // HEADER
-              RichText(
-                text: TextSpan(
-                  style: GoogleFonts.montserratAlternates(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onBackground,
-                  ),
-                  children: [
-                    const TextSpan(text: 'Find your perfect '),
-                    TextSpan(
-                      text: 'music',
-                      style: TextStyle(color: scheme.primary),
+  return Scaffold(
+    backgroundColor: scheme.background,
+    body: SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // HEADER (same style as Pomodoro)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                RichText(
+                  text: TextSpan(
+                    style: GoogleFonts.montserratAlternates(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onBackground,
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4),
-              RichText(
-                text: TextSpan(
-                  style: GoogleFonts.montserratAlternates(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onBackground,
-                  ),
-                  children: [
-                    const TextSpan(text: 'to '),
-                    TextSpan(
-                      text: 'study',
-                      style: TextStyle(color: scheme.primary),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // CARD
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: scheme.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: scheme.outline.withOpacity(0.8)),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      'Choose Your Mood',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: scheme.onSurface,
+                    children: [
+                      const TextSpan(text: 'Find your perfect '),
+                      TextSpan(
+                        text: 'music',
+                        style: TextStyle(color: scheme.primary),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    GridView.count(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        _moodTile(
-                          context: context,
-                          imagePath: 'assets/images/brain 1.png',
-                          label: 'Deep Focus',
-                          onTap: () => _onTapPlaylist(context, deepFocusUrl),
-                        ),
-                        _moodTile(
-                          context: context,
-                          imagePath: 'assets/images/book-stack 1.png',
-                          label: 'Study',
-                          onTap: () => _onTapPlaylist(context, studyUrl),
-                        ),
-                        _moodTile(
-                          context: context,
-                          imagePath: 'assets/images/paint-palette 1.png',
-                          label: 'Creative',
-                          onTap: () => _onTapPlaylist(context, creativeUrl),
-                        ),
-                        _moodTile(
-                          context: context,
-                          imagePath: 'assets/images/lightning 1.png',
-                          label: 'Energetic',
-                          onTap: () => _onTapPlaylist(context, energeticUrl),
-                        ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 6),
+                RichText(
+                  text: TextSpan(
+                    style: GoogleFonts.montserratAlternates(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onBackground,
+                    ),
+                    children: [
+                      const TextSpan(text: 'to '),
+                      TextSpan(
+                        text: 'study',
+                        style: TextStyle(color: scheme.primary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
 
-              const SizedBox(height: 32),
-            ],
-          ),
+            const SizedBox(height: 20),
+
+            // CARD
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: scheme.outline.withOpacity(0.8)),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Choose Your Mood',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  GridView.count(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _moodTile(
+                        context: context,
+                        imagePath: 'assets/images/brain 1.png',
+                        label: 'Deep Focus',
+                        onTap: () => _onTapPlaylist(context, deepFocusUrl),
+                      ),
+                      _moodTile(
+                        context: context,
+                        imagePath: 'assets/images/book-stack 1.png',
+                        label: 'Study',
+                        onTap: () => _onTapPlaylist(context, studyUrl),
+                      ),
+                      _moodTile(
+                        context: context,
+                        imagePath: 'assets/images/paint-palette 1.png',
+                        label: 'Creative',
+                        onTap: () => _onTapPlaylist(context, creativeUrl),
+                      ),
+                      _moodTile(
+                        context: context,
+                        imagePath: 'assets/images/lightning 1.png',
+                        label: 'Energetic',
+                        onTap: () => _onTapPlaylist(context, energeticUrl),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 32),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
