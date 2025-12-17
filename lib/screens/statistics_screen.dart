@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -10,7 +8,6 @@ import '../models/assignment.dart';
 import '../models/focus_log.dart';
 
 class StatisticsScreen extends StatefulWidget {
-  /// Kept for compatibility, but the screen now reads data from Firestore directly.
   final List<Assignment> assignments;
   final List<double> weeklyStudyHours;
 
@@ -54,14 +51,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return _db.collection('users').doc(user.uid).snapshots();
   }
 
-  // ----------------- MONTH RANGE HELPER -----------------
-
-  /// Given _selectedMonth and current year, return [start, end) range.
-  /// If _selectedMonth == 'Month', we use current month.
   (DateTime start, DateTime end) _getMonthRange() {
     final now = DateTime.now();
     final currentYear = now.year;
-    final currentMonthIndex = now.month - 1; // 0-based
+    final currentMonthIndex = now.month - 1;
 
     final String monthNameForFilter =
         _selectedMonth == 'Month' ? _months[currentMonthIndex] : _selectedMonth;
@@ -116,9 +109,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         .map((snap) => snap.docs.map((d) => FocusLog.fromDoc(d)).toList());
   }
 
-  /// Bucket logs into 4 weeks based on **day of month**:
-  /// 0 -> days 1–7, 1 -> 8–14, 2 -> 15–21, 3 -> 22–end.
-  /// Returns hours [week1, week2, week3, week4].
   List<double> _computeWeeklyHoursForMonth(
       List<FocusLog> logs, DateTime monthStart, DateTime monthEnd) {
     final buckets = List<double>.filled(4, 0.0);
@@ -183,7 +173,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             String username = '';
             String fullName = '';
             String displayName = '';
-            ImageProvider? avatarImage;
 
             if (userSnap.hasData && userSnap.data?.data() != null) {
               final data = userSnap.data!.data()!;
@@ -197,16 +186,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               } else {
                 displayName = 'Student';
               }
-
-              final photoBase64 = data['photoBase64'] as String?;
-              if (photoBase64 != null && photoBase64.isNotEmpty) {
-                try {
-                  final bytes = base64Decode(photoBase64);
-                  avatarImage = MemoryImage(bytes);
-                } catch (_) {
-                  avatarImage = null;
-                }
-              }
             } else {
               displayName = 'Student';
             }
@@ -216,7 +195,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top area (back + title + avatar + username)
+                  // Top area (back + title + username)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

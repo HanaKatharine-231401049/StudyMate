@@ -27,7 +27,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   final ImagePicker _picker = ImagePicker();
-  File? _imageFile;
   String? _photoBase64;
 
   bool _loadingImage = false;
@@ -75,7 +74,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     setState(() {
       _photoBase64 = base64;
-      _imageFile = file;
       _loadingImage = false;
     });
   }

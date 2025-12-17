@@ -69,12 +69,6 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
     super.dispose();
   }
 
-  OutlineInputBorder _inputBorder(ColorScheme scheme) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: scheme.outline, width: 1),
-    );
-  }
 
   Widget _segmentedToggle(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
