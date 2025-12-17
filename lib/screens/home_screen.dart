@@ -304,7 +304,7 @@ class _HomePageState extends State<HomePage> {
             );
             return res;
           },
-          onDelete: () {
+          onDelete: () async {
             _confirmDeleteSchedule(schedule);
             return Future.value(null);
           },
