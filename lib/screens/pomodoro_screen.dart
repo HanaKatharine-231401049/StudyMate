@@ -4,9 +4,11 @@ import 'dart:math';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // <-- for PlatformException
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/focus_log_service.dart';
+import '../services/focus_dnd_service.dart'; // <-- DND service
 import 'full_screen_pomodoro.dart';
 import 'set_timer_screen.dart';
 
@@ -29,9 +31,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   bool _isFocusPhase = true; // true = focus, false = break
   Timer? _timer;
 
-  // Strict mode flags (in-app only)
+  // Strict mode flags
   bool _strictBlockNotifications = false;
-  bool _strictBlockCalls = false;
 
   // Config
   int _shortBreakMinutes = 5;
@@ -50,6 +51,14 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+
+    // Best effort: if strict notifications was ON, restore DND to normal
+    if (_strictBlockNotifications) {
+      FocusDndService.disable().catchError((_) {
+        // ignore errors on dispose
+      });
+    }
+
     super.dispose();
   }
 
@@ -78,6 +87,61 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         ),
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // DND integration for Strict Mode
+  // ---------------------------------------------------------------------------
+  Future<void> _updateDndForStrictMode(bool enabled) async {
+    try {
+      if (enabled) {
+        // Optional pre-check
+        final hasPerm = await FocusDndService.hasPermission();
+        if (!hasPerm && mounted) {
+          _showThemedSnackBar(
+            'Please grant "Do Not Disturb" permission, then come back.',
+            duration: const Duration(seconds: 3),
+          );
+        }
+
+        // Native side will open settings if permission is missing
+        await FocusDndService.enable();
+
+        if (!mounted) return;
+        _showThemedSnackBar(
+          'Strict Mode: notifications will be silenced by DND.',
+          duration: const Duration(seconds: 2),
+        );
+      } else {
+        await FocusDndService.disable();
+
+        if (!mounted) return;
+        _showThemedSnackBar(
+          'Strict Mode: notifications allowed again.',
+          duration: const Duration(seconds: 2),
+        );
+      }
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+
+      if (e.code == 'NO_PERMISSION') {
+        _showThemedSnackBar(
+          'Permission required to control Do Not Disturb. Enable it in system settings, then try again.',
+          duration: const Duration(seconds: 3),
+        );
+      } else {
+        _showThemedSnackBar(
+          'Failed to update DND: ${e.message ?? e.code}',
+          duration: const Duration(seconds: 3),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showThemedSnackBar(
+        'Unexpected error updating DND: $e',
+        duration: const Duration(seconds: 3),
+      );
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -734,51 +798,14 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                               ),
                               Switch(
                                 value: _strictBlockNotifications,
-                                onChanged: (v) {
+                                onChanged: (v) async {
+                                  // Update both outer and inner state
                                   setModalState(
                                       () => _strictBlockNotifications = v);
                                   setState(
                                       () => _strictBlockNotifications = v);
 
-                                  _showThemedSnackBar(
-                                    v
-                                        ? 'Strict Mode: notifications blocked (in-app)'
-                                        : 'Strict Mode: notifications allowed',
-                                    duration:
-                                        const Duration(milliseconds: 700),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                          Divider(
-                            height: 1,
-                            color: bottomScheme.outline.withOpacity(0.3),
-                          ),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Block Phone Calls',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    color: bottomScheme.onSurface,
-                                  ),
-                                ),
-                              ),
-                              Switch(
-                                value: _strictBlockCalls,
-                                onChanged: (v) {
-                                  setModalState(() => _strictBlockCalls = v);
-                                  setState(() => _strictBlockCalls = v);
-
-                                  _showThemedSnackBar(
-                                    v
-                                        ? 'Strict Mode: phone calls blocked (in-app)'
-                                        : 'Strict Mode: phone calls allowed',
-                                    duration:
-                                        const Duration(milliseconds: 700),
-                                  );
+                                  await _updateDndForStrictMode(v);
                                 },
                               ),
                             ],
@@ -875,57 +902,68 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    const double horizontalPadding = 16.0;
+ @override
+Widget build(BuildContext context) {
+  final scheme = Theme.of(context).colorScheme;
+  const double horizontalPadding = 16.0;
 
-    return Scaffold(
-      backgroundColor: scheme.background,
-      appBar: null,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final double screenWidth = constraints.maxWidth;
-            final double cardWidth = screenWidth - (horizontalPadding * 2);
-            final double maxCardHeight = constraints.maxHeight * 0.55;
-            final double cardHeight =
-                max(260.0, min(420.0, maxCardHeight));
-            final double circleBase = min(220.0, cardWidth * 0.68);
+  return Scaffold(
+    backgroundColor: scheme.background,
+    body: SafeArea(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double screenWidth = constraints.maxWidth;
+          final double cardWidth = screenWidth - (horizontalPadding * 2);
+          final double maxCardHeight = constraints.maxHeight * 0.55;
+          final double cardHeight =
+              max(260.0, min(420.0, maxCardHeight));
+          final double circleBase = min(220.0, cardWidth * 0.68);
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: horizontalPadding,
-                vertical: 16.0,
+          return CustomScrollView(
+            slivers: [
+
+              // ================= HEADER PINNED =================
+              SliverAppBar(
+                pinned: true,
+                floating: false,
+                snap: false,
+                elevation: 0,
+                backgroundColor: scheme.background,
+                automaticallyImplyLeading: false,
+                toolbarHeight: 90,
+                titleSpacing: horizontalPadding,
+                title: _buildTopHeader(),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding:
-                        const EdgeInsets.fromLTRB(0, 12.0, 0, 14.0),
-                    child: _buildTopHeader(),
+
+              // ================= CONTENT =================
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                    vertical: 12,
                   ),
-                  _buildTimerCard(
-                    cardWidth: cardWidth,
-                    circleBase: circleBase,
-                    cardHeight: cardHeight,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTimerCard(
+                        cardWidth: cardWidth,
+                        circleBase: circleBase,
+                        cardHeight: cardHeight,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildThreeOptionRow(cardWidth: cardWidth),
+                      const SizedBox(height: 12),
+                      _buildFocusToday(cardWidth: cardWidth),
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  _buildThreeOptionRow(cardWidth: cardWidth),
-                  const SizedBox(height: 12),
-                  _buildFocusToday(cardWidth: cardWidth),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    height: max(32.0, constraints.maxHeight * 0.05),
-                  ),
-                ],
+                ),
               ),
-            );
-          },
-        ),
+            ],
+          );
+        },
       ),
-    );
-  }
+    ),
+  );
+}
 }

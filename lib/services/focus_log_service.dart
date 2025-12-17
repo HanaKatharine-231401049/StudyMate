@@ -46,20 +46,18 @@ class FocusLogService {
         .map((snap) => snap.docs.map(FocusLog.fromDoc).toList());
   }
 
+  /// One-shot total minutes for a given day (used in Pomodoro "Focus Today")
   Future<int> totalFocusMinutesForDay(String uid, DateTime day) async {
     final start = DateTime(day.year, day.month, day.day);
     final end = start.add(const Duration(days: 1));
 
-    final snap = await _db
-        .collection('users')
-        .doc(uid)
-        .collection('focus_logs')
+    final snap = await _userFocusLogsRef(uid)
         .where(
-          'timestamp',
+          'completedAt',                          // ✅ correct field
           isGreaterThanOrEqualTo: Timestamp.fromDate(start),
         )
         .where(
-          'timestamp',
+          'completedAt',
           isLessThan: Timestamp.fromDate(end),
         )
         .get();
@@ -68,8 +66,6 @@ class FocusLogService {
 
     for (final doc in snap.docs) {
       final data = doc.data();
-
-      // 👉 adjust this key if you used a different one, e.g. 'duration'
       final secondsDynamic = data['durationSeconds'];
 
       if (secondsDynamic is int) {
@@ -79,8 +75,6 @@ class FocusLogService {
       }
     }
 
-    final totalMinutes = (totalSeconds / 60).round();
-    return totalMinutes;
+    return (totalSeconds / 60).round();
   }
-
 }
