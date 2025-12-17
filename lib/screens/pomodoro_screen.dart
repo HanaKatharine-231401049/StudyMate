@@ -887,11 +887,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     }
 
     setState(() {
-      if (newFocusDuration != null) _duration = newFocusDuration!;
+      if (newFocusDuration != null) _duration = newFocusDuration;
       if (newBreakSeconds != null) {
-        _shortBreakMinutes = (newBreakSeconds! / 60).round().clamp(0, 45);
+        _shortBreakMinutes = (newBreakSeconds / 60).round().clamp(0, 45);
       }
-      if (newSessions != null) _sessions = newSessions!;
+      if (newSessions != null) _sessions = newSessions;
     });
 
     _resetTimer();
