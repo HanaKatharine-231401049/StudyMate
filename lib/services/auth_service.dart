@@ -53,42 +53,58 @@ class AuthService with ChangeNotifier {
       final email = user.email ?? '';
       final displayName = user.displayName?.trim();
       final phoneNumber = user.phoneNumber ?? '';
-      final photoUrl = user.photoURL; // optional, can be used in UI
+      final photoUrl = user.photoURL;
 
-      // Derive a username if none
+      // Derive default username/fullName (used only for NEW users)
       final localPart =
           email.contains('@') ? email.split('@')[0] : (displayName ?? 'user');
-      final username = localPart;
-      final fullName =
-          (displayName != null && displayName.isNotEmpty) ? displayName : localPart;
+      final defaultUsername = localPart;
+      final defaultFullName =
+          (displayName != null && displayName.isNotEmpty)
+              ? displayName
+              : localPart;
 
       // 4) Create or update Firestore user doc
       final docRef = _db.collection('users').doc(uid);
       final docSnap = await docRef.get();
 
       if (!docSnap.exists) {
-        // New user
+        // ---- NEW USER: create with defaults ----
         await docRef.set({
           'uid': uid,
-          'username': username,
-          'fullName': fullName,
+          'username': defaultUsername,
+          'fullName': defaultFullName,
           'email': email,
           'phoneNumber': phoneNumber,
-          // optional: store photoUrl (network URL) in addition to your base64 scheme
           if (photoUrl != null) 'photoUrl': photoUrl,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } else {
-        // Existing user -> update basic info & updatedAt
-        await docRef.update({
-          'username': username,
-          'fullName': fullName,
+        // ---- EXISTING USER: DO NOT overwrite username/fullName ----
+        final existing = docSnap.data() ?? {};
+
+        final String? existingUsername =
+            (existing['username'] as String?)?.trim();
+        final String? existingFullName =
+            (existing['fullName'] as String?)?.trim();
+
+        final updateData = <String, dynamic>{
           'email': email,
           'phoneNumber': phoneNumber,
           if (photoUrl != null) 'photoUrl': photoUrl,
           'updatedAt': FieldValue.serverTimestamp(),
-        });
+        };
+
+        // Optional: only fill username/fullName if they are missing
+        if (existingUsername == null || existingUsername.isEmpty) {
+          updateData['username'] = defaultUsername;
+        }
+        if (existingFullName == null || existingFullName.isEmpty) {
+          updateData['fullName'] = defaultFullName;
+        }
+
+        await docRef.update(updateData);
       }
 
       notifyListeners();
