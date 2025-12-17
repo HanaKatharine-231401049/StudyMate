@@ -23,8 +23,8 @@ class AddEditAssignmentPage extends StatefulWidget {
 
 class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
   late final TextEditingController titleController;
-  late final TextEditingController dateController; // "11 December 2025"
-  late final TextEditingController timeController; // "18:00"
+  late final TextEditingController dateController; 
+  late final TextEditingController timeController; 
   late final TextEditingController descriptionController;
 
   late final String uid;
@@ -101,7 +101,7 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
     );
   }
 
-  /// Validasi format waktu HH:mm
+  /// Validasi format waktu
   void _validateTimeFormat(String input) {
     final trimmed = input.trim();
     if (trimmed.isEmpty) {
@@ -109,13 +109,11 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
       return;
     }
 
-    // Pattern untuk format HH:mm
     final pattern = RegExp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$');
     final pattern2 = RegExp(r'^[0-9]{1,2}:[0-9]{2}$');
     
     bool isValid = pattern.hasMatch(trimmed) || pattern2.hasMatch(trimmed);
     
-    // Validasi tambahan untuk memastikan jam 0-23 dan menit 0-59
     if (isValid) {
       final parts = trimmed.split(':');
       if (parts.length == 2) {
@@ -133,9 +131,7 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
     setState(() => _isTimeValid = isValid);
   }
 
-  /// Parse "18:00" atau "9:30" menjadi TimeOfDay
   TimeOfDay? _parseTimeOfDay(String input) {
-    // Bersihkan input dari spasi
     final cleaned = input.trim();
     if (cleaned.isEmpty) return null;
     
@@ -163,21 +159,18 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
       return;
     }
 
-    // 1) Parse the DATE part
     final dateOnly = DateUtilsHelper.tryParse(dateStr);
     if (dateOnly == null) {
       _showDialog('Invalid date. Please pick a valid date.');
       return;
     }
 
-    // 2) Parse the TIME part
     final timeOfDay = _parseTimeOfDay(timeStr);
     if (timeOfDay == null) {
       _showDialog('Invalid time format. Please use format HH:mm (e.g., 18:00 or 9:30)');
       return;
     }
 
-    // 3) Combine into a full DateTime (date + time)
     final dueDate = DateTime(
       dateOnly.year,
       dateOnly.month,
@@ -192,18 +185,16 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
       final service = StudyService();
 
       if (widget.isEditing && widget.assignment != null) {
-        // update in Firestore
         await service.updateAssignment(
           uid: uid,
           assignmentId: widget.assignment!.id,
           title: title,
-          dueDate: dueDate,     // <-- now full DateTime
-          time: timeStr,        // keep string version too
+          dueDate: dueDate,     
+          time: timeStr,        
           description: desc,
           isFinished: widget.assignment!.isFinished,
         );
 
-        // update local model for previous page
         final updated = widget.assignment!.copyWith(
           title: title,
           dueDate: dueDate,
@@ -213,11 +204,10 @@ class _AddEditAssignmentPageState extends State<AddEditAssignmentPage> {
 
         if (mounted) Navigator.pop(context, updated);
       } else {
-        // create new in Firestore, get the new doc id
         final newId = await service.addAssignment(
           uid: uid,
           title: title,
-          dueDate: dueDate,     // <-- full DateTime
+          dueDate: dueDate,     
           time: timeStr,
           description: desc,
         );

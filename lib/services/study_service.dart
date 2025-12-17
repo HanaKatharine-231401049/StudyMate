@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../models/assignment.dart'; // Add this import
+import '../models/assignment.dart'; 
 
 class StudyService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -17,9 +17,8 @@ class StudyService {
     return _userCol(uid, 'schedules');
   }
 
-  // ---------------- SCHEDULES ----------------
+  // SCHEDULES 
 
-  /// ADD schedule (DateTime in, Timestamp stored)
   Future<void> addSchedule({
     required String uid,
     required String title,
@@ -29,8 +28,8 @@ class StudyService {
   }) async {
     await _schedulesCol(uid).add({
       'title': title,
-      'date': Timestamp.fromDate(date), // ✅ for queries
-      'dateString': DateFormat('yyyy-MM-dd').format(date), // ✅ for UI
+      'date': Timestamp.fromDate(date), 
+      'dateString': DateFormat('yyyy-MM-dd').format(date), 
       'timeRange': timeRange,
       'description': description,
       'createdAt': FieldValue.serverTimestamp(),
@@ -38,7 +37,6 @@ class StudyService {
     });
   }
 
-  /// UPDATE schedule (needs scheduleId / doc id)
   Future<void> updateSchedule({
     required String uid,
     required String scheduleId,
@@ -57,7 +55,6 @@ class StudyService {
     });
   }
 
-  /// Optional: read schedules for a specific day (now works)
   Stream<QuerySnapshot<Map<String, dynamic>>> schedulesForDay(
       String uid, DateTime day) {
     final start = DateTime(day.year, day.month, day.day);
@@ -70,18 +67,18 @@ class StudyService {
         .snapshots();
   }
 
-  // ---------------- NOTES ----------------
+  // NOTES 
 
   Future<void> addNote({
     required String uid,
     required String title,
-    required DateTime date, // <-- change to DateTime
+    required DateTime date,
     required String description,
   }) async {
     await _notesCol(uid).add({
       'title': title,
-      'date': Timestamp.fromDate(date),     // for queries
-      'dateString': DateFormat('yyyy-MM-dd').format(date), // for UI if you want
+      'date': Timestamp.fromDate(date),     
+      'dateString': DateFormat('yyyy-MM-dd').format(date), 
       'description': description,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -116,7 +113,7 @@ class StudyService {
         .snapshots();
   }
 
-  // ---------------- ASSIGNMENTS ----------------
+  // ASSIGNMENTS
   Future<String> addAssignment({
     required String uid,
     required String title,

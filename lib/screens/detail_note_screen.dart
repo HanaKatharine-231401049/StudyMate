@@ -1,4 +1,3 @@
-// lib/screens/detail_note_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/note.dart';
@@ -8,7 +7,6 @@ import 'home_screen.dart';
 class DetailNotePage extends StatelessWidget {
   final Note note;
 
-  /// onEdit should return a Future that resolves to the result from edit page (or null).
   final Future<dynamic> Function()? onEdit;
   final Future<bool> Function()? onDelete;
 
@@ -95,8 +93,6 @@ class DetailNotePage extends StatelessWidget {
         ),
       ),
 
-      // leaving this as-is; if BottomNavBar still hardcodes colors,
-      // we can refactor it next with the same pattern.
       bottomNavigationBar: BottomNavBar(
         selectedIndex: 1,
         onTapIndex: (index) {
@@ -122,7 +118,7 @@ class DetailNotePage extends StatelessWidget {
           style: GoogleFonts.inter(
             fontWeight: FontWeight.bold,
             fontSize: 16,
-            color: scheme.onBackground, // label should be readable in both modes
+            color: scheme.onBackground, 
           ),
         ),
         const SizedBox(height: 8),

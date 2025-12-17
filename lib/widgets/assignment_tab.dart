@@ -1,4 +1,3 @@
-// lib/widgets/assignment_tab.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -36,7 +35,6 @@ class AssignmentTab extends StatelessWidget {
 
     return Column(
       children: [
-        // Sub tabs
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
           child: Row(
@@ -134,7 +132,6 @@ class AssignmentTab extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left icon
             Padding(
               padding: const EdgeInsets.only(top: 2.0),
               child: Icon(
@@ -144,7 +141,6 @@ class AssignmentTab extends StatelessWidget {
             ),
             const SizedBox(width: 12),
 
-            // Texts
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,14 +179,13 @@ class AssignmentTab extends StatelessWidget {
 
             const SizedBox(width: 12),
 
-            // Right: "mark done" button
             GestureDetector(
               onTap: () => onToggleStatus(a),
               child: Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.white, // always white circle
+                  color: Colors.white, 
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -202,9 +197,8 @@ class AssignmentTab extends StatelessWidget {
                 ),
                 child: Icon(
                   Icons.check,
-                  // green when done, light gray when not
                   color: a.isFinished
-                      ? const Color(0xFF22C55E) // nice green
+                      ? const Color(0xFF22C55E) 
                       : scheme.outline.withOpacity(0.4),
                   size: 22,
                 ),

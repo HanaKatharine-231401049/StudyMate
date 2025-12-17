@@ -1,4 +1,3 @@
-// lib/screens/detail_schedule_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/schedule.dart';
@@ -8,10 +7,8 @@ import 'home_screen.dart';
 class DetailSchedulePage extends StatelessWidget {
   final Schedule schedule;
 
-  /// onEdit should return a Future that resolves to the result from edit page (or null).
   final Future<dynamic> Function()? onEdit;
 
-  /// onDelete should return Future<bool> -> true jika item benar-benar dihapus.
   final Future<bool> Function()? onDelete;
 
   const DetailSchedulePage({
@@ -99,7 +96,6 @@ class DetailSchedulePage extends StatelessWidget {
         ),
       ),
 
-      // If BottomNavBar still hardcodes colors, we can refactor it next.
       bottomNavigationBar: BottomNavBar(
         selectedIndex: 0,
         onTapIndex: (index) {
