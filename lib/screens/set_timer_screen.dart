@@ -430,8 +430,7 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
         Text(
           'Sessions',
           style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
+            fontSize: 12,
             color: scheme.primary,
           ),
         ),
@@ -483,19 +482,22 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
     return Scaffold(
       backgroundColor: scheme.background,
       appBar: AppBar(
-        backgroundColor: scheme.background,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
+        iconTheme: IconThemeData(color: scheme.primary),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: scheme.primary),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'Set Timer',
-          style: GoogleFonts.inter(
-            fontSize: 20,
+          style: GoogleFonts.montserrat(
             fontWeight: FontWeight.bold,
-            color: scheme.onBackground,
+            color: scheme.primary,
           ),
         ),
-        iconTheme: IconThemeData(color: scheme.primary),
       ),
+
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: pad, vertical: 30),
@@ -507,27 +509,31 @@ class _SetTimerScreenState extends State<SetTimerScreen> {
               _sessionsControl(context),
               const SizedBox(height: 22),
 
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _saveAndReturn,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: scheme.primary,
-                    foregroundColor: scheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  width: 110,
+                  child: ElevatedButton(
+                    onPressed: _saveAndReturn,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: scheme.primary,
+                      foregroundColor: scheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    'Save',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                    child: Text(
+                      'Save',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
               ),
+
 
               const SizedBox(height: 28),
             ],

@@ -267,8 +267,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
       children: [
         RichText(
           text: TextSpan(
-            style: GoogleFonts.inter(
-              fontSize: 22,
+            style: GoogleFonts.montserratAlternates(
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: scheme.onBackground,
             ),
@@ -276,7 +276,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               const TextSpan(text: "It's "),
               TextSpan(
                 text: phaseText,
-                style: TextStyle(
+                style: GoogleFonts.montserratAlternates(
                   color: scheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
@@ -288,8 +288,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         const SizedBox(height: 6),
         RichText(
           text: TextSpan(
-            style: GoogleFonts.inter(
-              fontSize: 22,
+            style: GoogleFonts.montserratAlternates(
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: scheme.onBackground,
             ),
@@ -297,7 +297,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               const TextSpan(text: "Let's get those "),
               TextSpan(
                 text: "goals",
-                style: TextStyle(
+                style: GoogleFonts.montserratAlternates(
                   color: scheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
