@@ -1,13 +1,12 @@
-// lib/models/assignment.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../utils/date_utils.dart';
 
 class Assignment {
-  final String id;          // Firestore doc id
+  final String id;          
   final String title;
-  final DateTime dueDate;   // REAL date
-  final String time;        // "10:30 - 12:00"
+  final DateTime dueDate;   
+  final String time;        
   final String description;
   final bool isFinished;
 
@@ -20,7 +19,6 @@ class Assignment {
     required this.isFinished,
   });
 
-  /// For UI: same as your old `date` string.
   String get dateString => DateUtilsHelper.formatDate(dueDate);
 
   Assignment copyWith({
@@ -41,7 +39,6 @@ class Assignment {
     );
   }
 
-  /// Firestore -> Assignment (supports old and new schemas)
   factory Assignment.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
 
@@ -59,16 +56,12 @@ class Assignment {
     final dateTs = data['date'];
 
     if (dueDateTs is Timestamp) {
-      // New schema: dueDate as Timestamp
       dueDate = dueDateTs.toDate();
     } else if (dateTs is Timestamp) {
-      // Old schema: date as Timestamp
       dueDate = dateTs.toDate();
     } else if (data['dateString'] is String) {
-      // Old schema: stored formatted string
       dueDate = DateUtilsHelper.tryParse(data['dateString'] as String);
     } else if (data['date'] is String) {
-      // Old schema: plain string "date"
       dueDate = DateUtilsHelper.tryParse(data['date'] as String);
     }
 
@@ -82,7 +75,6 @@ class Assignment {
     );
   }
 
-  /// Assignment -> Firestore
   Map<String, dynamic> toMap({bool isNew = false}) {
     return {
       'title': title,

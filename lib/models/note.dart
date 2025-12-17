@@ -1,4 +1,3 @@
-// lib/models/note.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
@@ -6,7 +5,6 @@ class Note {
   final String id;
   final String title;
 
-  /// UI-friendly formatted string (what your textfields show)
   final String date;
 
   final String description;
@@ -35,10 +33,8 @@ class Note {
   factory Note.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
 
-    // Prefer stored UI string if present
     String dateString = (data['dateString'] ?? '') as String;
 
-    // If dateString missing, fall back to Timestamp -> formatted string
     final ts = data['date'];
     if (dateString.isEmpty && ts is Timestamp) {
       dateString = DateFormat('d MMMM yyyy').format(ts.toDate());
@@ -57,8 +53,8 @@ class Note {
   }) {
     return {
       'title': title,
-      'date': Timestamp.fromDate(dateObj), // real firestore date
-      'dateString': date,                  // UI string
+      'date': Timestamp.fromDate(dateObj), 
+      'dateString': date,                  
       'description': description,
     };
   }

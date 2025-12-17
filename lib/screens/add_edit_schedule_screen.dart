@@ -1,4 +1,3 @@
-// lib/screens/add_edit_schedule_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -59,7 +58,6 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
           : '',
     );
 
-    // Validasi awal untuk waktu
     if (widget.isEditing && widget.schedule != null && widget.schedule!.time.isNotEmpty) {
       _validateTimeRange(widget.schedule!.time);
     }
@@ -102,7 +100,7 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
     );
   }
 
-  /// Validasi format waktu range HH:mm - HH:mm
+  /// Validasi format waktu range 
   void _validateTimeRange(String input) {
     final trimmed = input.trim();
     if (trimmed.isEmpty) {
@@ -110,15 +108,11 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
       return;
     }
 
-    // Pattern untuk format waktu range: "HH:mm - HH:mm"
-    // Mendukung format seperti: "10:30 - 11:20", "09:00-12:00", "14:00 - 15:30"
     final pattern = RegExp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]\s*[-–]\s*([0-1]?[0-9]|2[0-3]):[0-5][0-9]$');
     
     bool isValid = pattern.hasMatch(trimmed);
     
-    // Validasi tambahan untuk memastikan format jam yang benar
     if (isValid) {
-      // Bersihkan spasi dan ambil bagian waktu
       final cleanTime = trimmed.replaceAll(RegExp(r'\s+'), '');
       final separator = cleanTime.contains('–') ? '–' : '-';
       final parts = cleanTime.split(separator);
@@ -154,7 +148,6 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
   }
 
   DateTime? _parseDate(String input) {
-    // normalize weird spaces
     var raw = input
         .replaceAll('\u00A0', ' ')
         .replaceAll('\u202F', ' ')
@@ -164,13 +157,11 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
 
     if (raw.isEmpty) return null;
 
-    // 1) Try built-in ISO parsing first (e.g. "2025-12-11 00:00:00.000")
     final direct = DateTime.tryParse(raw);
     if (direct != null) {
       return DateTime(direct.year, direct.month, direct.day);
     }
 
-    // 2) Fallback: "11 December 2025", "11 Dec 2025", "11 Desember 2025", etc.
     final match =
         RegExp(r'(\d{1,2})\s+([A-Za-z]+)\s*,?\s*(\d{4})').firstMatch(raw);
 
@@ -207,7 +198,6 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
       'nov': 11,
       'december': 12,
       'dec': 12,
-      // Indonesian variants
       'januari': 1,
       'februari': 2,
       'maret': 3,
@@ -244,7 +234,6 @@ class _AddEditSchedulePageState extends State<AddEditSchedulePage> {
       return;
     }
 
-    // Validasi format waktu sebelum menyimpan
     if (!_isTimeValid) {
       _showDialog('Invalid time format. Please use format HH:mm - HH:mm (e.g., 10:30 - 11:20)');
       return;

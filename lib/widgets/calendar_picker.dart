@@ -1,18 +1,13 @@
-// lib/widgets/calendar_picker.dart
 import 'package:flutter/material.dart';
 import '../utils/colors.dart';
 
 class CalendarPickerButton extends StatelessWidget {
-  /// Tanggal awal (format "D Month YYYY"), jika null fallback ke DateTime.now()
   final String? initialDateString;
 
-  /// Callback ketika user memilih tanggal (format "D Month YYYY")
   final ValueChanged<String> onDateSelected;
 
-  /// Opsi: ukuran kontainer
   final double size;
 
-  /// Opsi: apakah memberi background filled (default true)
   final bool filled;
 
   const CalendarPickerButton({
@@ -52,7 +47,6 @@ class CalendarPickerButton extends StatelessWidget {
     }
   }
 
-  // ---- helper parsing & formatting ----
   DateTime? _parseSelectedDate(String? sel) {
     if (sel == null) return null;
     try {

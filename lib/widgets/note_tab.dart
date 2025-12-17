@@ -1,4 +1,3 @@
-// lib/widgets/note_tab.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/note.dart';
@@ -24,7 +23,6 @@ class NoteTab extends StatelessWidget {
 
     return Column(
       children: [
-        // header + search input
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Row(
@@ -40,7 +38,7 @@ class NoteTab extends StatelessWidget {
                 ),
               ),
 
-              // ───────── SEARCH FIELD ─────────
+              // SEARCH FIELD
               Expanded(
                 flex: 2,
                 child: TextField(
@@ -82,7 +80,7 @@ class NoteTab extends StatelessWidget {
 
         const SizedBox(height: 8),
 
-        // ───────── NOTES LIST ─────────
+        // NOTES LIST
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.only(bottom: 80),

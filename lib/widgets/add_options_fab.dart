@@ -1,4 +1,3 @@
-// lib/widgets/add_options_fab.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/colors.dart';
@@ -7,11 +6,11 @@ typedef VoidCallbackNoArgs = void Function();
 
 class AddOptionsFab extends StatelessWidget {
   final bool showAddOptions;
-  final VoidCallback onToggle; // toggle show/hide
+  final VoidCallback onToggle;
   final VoidCallbackNoArgs onAddSchedule;
   final VoidCallbackNoArgs onAddNote;
   final VoidCallbackNoArgs onAddAssignment;
-  final bool disabled; // jika true, FAB tidak tampil (mis. di tab tertentu)
+  final bool disabled; 
 
   const AddOptionsFab({
     super.key,
@@ -30,7 +29,6 @@ class AddOptionsFab extends StatelessWidget {
     return Stack(
       alignment: Alignment.bottomRight,
       children: [
-        // overlay sementara (tutup jika ketuk area di luar opsi)
         if (showAddOptions)
           Positioned.fill(
             child: GestureDetector(
@@ -41,7 +39,6 @@ class AddOptionsFab extends StatelessWidget {
             ),
           ),
 
-        // option buttons (posisi di atas FAB)
         if (showAddOptions)
           Positioned(
             right: 16,
@@ -71,7 +68,6 @@ class AddOptionsFab extends StatelessWidget {
             ),
           ),
 
-        // main FAB
         Positioned(
           right: 16,
           bottom: 16,

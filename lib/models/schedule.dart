@@ -1,11 +1,10 @@
-// lib/models/schedule.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Schedule {
-  final String id;            // Firestore doc id
+  final String id;          
   final String title;
-  final String date;          // formatted string for UI (e.g., "2025-12-10")
-  final String time;          // time range string
+  final String date;          
+  final String time;          
   final String description;
 
   Schedule({
@@ -32,20 +31,18 @@ class Schedule {
     );
   }
 
-  /// Firestore -> Schedule
   factory Schedule.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
 
     return Schedule(
       id: doc.id,
       title: (data['title'] ?? '') as String,
-      date: (data['dateString'] ?? '') as String, // read UI string
+      date: (data['dateString'] ?? '') as String, 
       time: (data['timeRange'] ?? '') as String,
       description: (data['description'] ?? '') as String,
     );
   }
 
-  /// Schedule -> Firestore map (for local use; service adds timestamps)
   Map<String, dynamic> toMap() {
     return {
       'title': title,

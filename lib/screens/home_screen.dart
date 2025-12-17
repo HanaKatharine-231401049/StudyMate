@@ -1,4 +1,3 @@
-// lib/screens/home_screen.dart
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,16 +5,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// models
 import '../models/schedule.dart';
 import '../models/assignment.dart';
 import '../models/note.dart';
 
-// utils
 import '../utils/dialog_components.dart';
 import '../utils/date_utils.dart';
 
-// pages
 import 'add_edit_schedule_screen.dart';
 import 'add_edit_assignment_screen.dart';
 import 'add_edit_note_screen.dart';
@@ -27,7 +23,6 @@ import 'mood_screen.dart';
 import 'pomodoro_screen.dart';
 import 'profile_screen.dart';
 
-// widgets
 import '../widgets/header_tabs.dart';
 import '../widgets/schedule_tab.dart';
 import '../widgets/note_tab.dart';
@@ -48,16 +43,12 @@ class _HomePageState extends State<HomePage> {
   late int _selectedIndex;
   int _assignmentTabIndex = 0;
 
-  // UI uses string date, but DB uses DateTime/Timestamp
   String _selectedDateString = DateUtilsHelper.formatDate(DateTime.now());
 
-  // search state for notes
   String _noteSearchQuery = '';
 
-  // add options state
   bool _showAddOptions = false;
 
-  // Cache untuk pending tasks count
   int _cachedPendingTasks = 0;
   bool _isFirstLoad = true;
 
@@ -76,7 +67,7 @@ class _HomePageState extends State<HomePage> {
     uid = user.uid;
   }
 
-  // ---------- Helpers ----------
+  //Helpers 
 
   DateTime? _parseDateString(String input) {
     return DateUtilsHelper.tryParse(input);
@@ -102,7 +93,7 @@ class _HomePageState extends State<HomePage> {
     setState(() => _showAddOptions = false);
   }
 
-  // ---------- Firestore streams ----------
+  //Firestore streams
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _schedulesForSelectedDay() {
     final day = _parseDateString(_selectedDateString) ?? DateTime.now();
@@ -137,7 +128,6 @@ class _HomePageState extends State<HomePage> {
         .snapshots();
   }
 
-  // Stream untuk semua assignments (tanpa filter kompleks)
   Stream<QuerySnapshot<Map<String, dynamic>>> _allAssignmentsSimpleStream() {
     return _db
         .collection('users')
@@ -150,7 +140,6 @@ class _HomePageState extends State<HomePage> {
     return _db.collection('users').doc(uid).snapshots();
   }
 
-  // ---------- Helper untuk menghitung pending tasks ----------
   int _countPendingTasks(QuerySnapshot<Map<String, dynamic>>? snapshot) {
     if (snapshot == null) return _cachedPendingTasks;
     
@@ -170,7 +159,6 @@ class _HomePageState extends State<HomePage> {
     return count;
   }
 
-  // ---------- Helper untuk membangun task counter ----------
   Widget _buildTaskCounter(String username, int pendingTasks, ColorScheme scheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,7 +195,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ---------- Delete handlers ----------
+  // Delete handlers 
 
   void _confirmDeleteSchedule(Schedule schedule) {
     showDialog(
@@ -286,7 +274,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ---------- Detail openers ----------
+  //Detail openers
 
   Future<void> _openScheduleDetail(Schedule schedule) async {
     await Navigator.push<dynamic>(
@@ -365,7 +353,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ---------- Toggle assignment done ----------
+  // Toggle assignment done
 
   Future<void> _toggleAssignmentDone(Assignment assignment) async {
     final newValue = !assignment.isFinished;
@@ -381,13 +369,11 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // ---------- Build ----------
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    // disable FAB on tab 3..6
     final bool fabDisabled =
         (_selectedIndex == 3 ||
             _selectedIndex == 4 ||
@@ -401,6 +387,8 @@ class _HomePageState extends State<HomePage> {
           ? null
           : AppBar(
               backgroundColor: scheme.background,
+              surfaceTintColor: Colors.transparent,
+              scrolledUnderElevation: 0,
               automaticallyImplyLeading: false,
               elevation: 0,
               toolbarHeight: 120,
@@ -413,18 +401,15 @@ class _HomePageState extends State<HomePage> {
                   return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                     stream: _allAssignmentsSimpleStream(),
                     builder: (context, snap) {
-                      // Gunakan cached value selama loading pertama kali
                       if (_isFirstLoad && snap.connectionState == ConnectionState.waiting) {
                         return _buildTaskCounter(username, _cachedPendingTasks, scheme);
                       }
                       
-                      // Jika ada error, tetap tampilkan cached value
                       if (snap.hasError) {
                         print('Error loading assignments: ${snap.error}');
                         return _buildTaskCounter(username, _cachedPendingTasks, scheme);
                       }
 
-                      // Hitung pending tasks dan update cache
                       final pendingTasks = _countPendingTasks(snap.data);
                       return _buildTaskCounter(username, pendingTasks, scheme);
                     },
@@ -529,7 +514,7 @@ class _HomePageState extends State<HomePage> {
                 child: IndexedStack(
                   index: _selectedIndex,
                   children: [
-                    // ---------------- TAB 0: SCHEDULE ----------------
+                    // SCHEDULE
                     StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                       stream: _schedulesForSelectedDay(),
                       builder: (context, snap) {
@@ -544,7 +529,6 @@ class _HomePageState extends State<HomePage> {
                           );
                         }
                         
-                        // Untuk schedule, kita bisa tampilkan loading
                         if (!snap.hasData) {
                           return Center(
                             child: CircularProgressIndicator(
@@ -566,7 +550,7 @@ class _HomePageState extends State<HomePage> {
                       },
                     ),
 
-                    // ---------------- TAB 1: NOTES ----------------
+                    // NOTES 
                     StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                       stream: _allNotesStream(),
                       builder: (context, snap) {
@@ -610,12 +594,11 @@ class _HomePageState extends State<HomePage> {
                       },
                     ),
 
-                    // ---------------- TAB 2: ASSIGNMENTS ----------------
+                    // ASSIGNMENTS 
                     StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                       stream: _allAssignmentsStream(),
                       builder: (context, snap) {
                         if (snap.hasError) {
-                          // If ordering by dueDate fails, fallback to simple stream
                           return StreamBuilder<
                               QuerySnapshot<Map<String, dynamic>>>(
                             stream: _allAssignmentsSimpleStream(),
@@ -666,7 +649,7 @@ class _HomePageState extends State<HomePage> {
                       },
                     ),
 
-                    // ---------------- TAB 3: STATISTICS ----------------
+                    // STATISTICS
                     StatisticsScreen(
                       assignments: const [],
                       weeklyStudyHours: const [10, 25, 15, 20],
@@ -686,12 +669,12 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
 
-          // ---------------- FAB + ADD OPTIONS ----------------
+          // ADD OPTIONS 
           AddOptionsFab(
             showAddOptions: _showAddOptions,
             onToggle: _toggleAddOptions,
 
-            // ---------------- ADD SCHEDULE ----------------
+            // ADD SCHEDULE
             onAddSchedule: () async {
               _hideAddOptions();
 
@@ -704,7 +687,6 @@ class _HomePageState extends State<HomePage> {
 
               if (!mounted) return;
 
-              // Only show success if user actually saved (result != null)
               if (result != null) {
                 showDialog(
                   context: context,
@@ -715,7 +697,7 @@ class _HomePageState extends State<HomePage> {
               }
             },
 
-            // ---------------- ADD NOTE ----------------
+            // ADD NOTE
             onAddNote: () async {
               _hideAddOptions();
 
@@ -738,7 +720,7 @@ class _HomePageState extends State<HomePage> {
               }
             },
 
-            // ---------------- ADD ASSIGNMENT ----------------
+            // ADD ASSIGNMENT 
             onAddAssignment: () async {
               _hideAddOptions();
 

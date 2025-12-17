@@ -46,7 +46,6 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
     super.dispose();
   }
 
-  // ---------- UI helpers ----------
 
   void _showDialog(String title, String msg) {
     final scheme = Theme.of(context).colorScheme;
@@ -99,29 +98,22 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
     );
   }
 
-  // ---------- Date parsing (robust) ----------
 
   DateTime? _parseDate(String input) {
-    // Normalize whitespace & remove weird unicode spaces
     var raw = input
-        .replaceAll('\u00A0', ' ') // NBSP
-        .replaceAll('\u202F', ' ') // narrow NBSP
-        .replaceAll('\u2007', ' ') // figure space
+        .replaceAll('\u00A0', ' ')
+        .replaceAll('\u202F', ' ') 
+        .replaceAll('\u2007', ' ') 
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
 
     if (raw.isEmpty) return null;
 
-    // 1) Try built-in ISO parsing first
-    //    e.g. "2025-12-11 00:00:00.000", "2025-12-11"
     final direct = DateTime.tryParse(raw);
     if (direct != null) {
-      // keep only Y/M/D
       return DateTime(direct.year, direct.month, direct.day);
     }
 
-    // 2) Fallback to formats like: "11 December 2025", "11 Dec 2025",
-    //    "11 Desember 2025", etc.
     final match = RegExp(r'(\d{1,2})\s+([A-Za-z]+)\s*,?\s*(\d{4})')
         .firstMatch(raw);
 
@@ -176,7 +168,6 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
 
     return DateTime(year, month, day);
   }
-  // ---------- Save logic ----------
 
   bool _validateInputs() {
     if (_titleCtrl.text.trim().isEmpty || _dateCtrl.text.trim().isEmpty) {
@@ -212,13 +203,13 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
           uid: _uid,
           noteId: widget.note!.id,
           title: title,
-          date: dateObj,          // ✅ DateTime to Firestore
+          date: dateObj,          
           description: desc,
         );
 
         final updated = widget.note!.copyWith(
           title: title,
-          date: dateStr,          // keep UI string
+          date: dateStr,          
           description: desc,
         );
 
@@ -227,14 +218,14 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
         await service.addNote(
           uid: _uid,
           title: title,
-          date: dateObj,          // ✅ DateTime to Firestore
+          date: dateObj,          
           description: desc,
         );
 
         final created = Note(
           id: '',
           title: title,
-          date: dateStr,          // keep UI string
+          date: dateStr,         
           description: desc,
         );
 
@@ -246,8 +237,6 @@ class _AddEditNotePageState extends State<AddEditNotePage> {
       if (mounted) setState(() => _isSaving = false);
     }
   }
-
-  // ---------- Build ----------
 
   @override
   Widget build(BuildContext context) {

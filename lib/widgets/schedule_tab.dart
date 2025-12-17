@@ -1,4 +1,3 @@
-// lib/widgets/schedule_tab.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -86,7 +85,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
   List<DateTime> _weekDays(DateTime start) =>
       List.generate(7, (i) => start.add(Duration(days: i)));
 
-  // ---------------- PICKER ----------------
+  // PICKER 
   Future<void> _openPicker() async {
     final picked = await showDatePicker(
       context: context,
@@ -94,7 +93,6 @@ class _ScheduleTabState extends State<ScheduleTab> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
       builder: (context, child) {
-        // force picker to follow theme
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: Theme.of(context).colorScheme,
@@ -132,7 +130,6 @@ class _ScheduleTabState extends State<ScheduleTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ---------------- TOP BAR ----------------
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
           child: Row(
@@ -169,7 +166,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
           ),
         ),
 
-        // ---------------- WEEK STRIP ----------------
+        // WEEK STRIP 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
@@ -179,7 +176,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
                   day.month == _selectedDay.month &&
                   day.day == _selectedDay.day;
 
-              final dow = DateFormat('E').format(day); // Mon, Tue...
+              final dow = DateFormat('E').format(day); 
 
               return GestureDetector(
                 onTap: () => _selectDay(day),
@@ -228,7 +225,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
 
         const SizedBox(height: 16),
 
-        // ---------------- SCHEDULE LIST ----------------
+        // SCHEDULE LIST 
         Expanded(
           child: widget.schedules.isEmpty
               ? Center(
@@ -257,7 +254,6 @@ class _ScheduleTabState extends State<ScheduleTab> {
   }
 }
 
-// ---------------- CARD ITEM ----------------
 class _ScheduleItem extends StatelessWidget {
   final Schedule schedule;
   final ColorScheme scheme;
@@ -284,7 +280,6 @@ class _ScheduleItem extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left time column
             Container(
               width: 80,
               padding: const EdgeInsets.only(top: 4),
@@ -298,7 +293,6 @@ class _ScheduleItem extends StatelessWidget {
             ),
             const SizedBox(width: 12),
 
-            // Right details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

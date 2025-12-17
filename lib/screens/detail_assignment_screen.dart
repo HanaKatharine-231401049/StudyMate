@@ -1,4 +1,3 @@
-// lib/screens/detail_assignment_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -10,7 +9,6 @@ import 'home_screen.dart';
 class DetailAssignmentPage extends StatelessWidget {
   final Assignment assignment;
 
-  /// onEdit should return a Future that resolves to the result from edit page (or null).
   final Future<dynamic> Function()? onEdit;
   final Future<bool> Function()? onDelete;
 
@@ -22,13 +20,10 @@ class DetailAssignmentPage extends StatelessWidget {
   });
 
   String get _dateText {
-    // nice readable date, e.g. "11 December 2025"
-    // you can also use assignment.dateString if you prefer
     return DateFormat('d MMMM yyyy').format(assignment.dueDate);
   }
 
   String get _timeText {
-    // time from dueDate only, formatted as HH:MM (24h)
     return DateFormat('HH:mm').format(assignment.dueDate);
   }
 
@@ -63,11 +58,9 @@ class DetailAssignmentPage extends StatelessWidget {
               _buildDetailItem(context, 'Title', assignment.title),
               const SizedBox(height: 20),
 
-              // DATE: show only the date part
               _buildDetailItem(context, 'Date', _dateText),
               const SizedBox(height: 20),
 
-              // TIME: show only the time part from dueDate, HH:MM
               _buildDetailItem(context, 'Time', _timeText),
               const SizedBox(height: 20),
 
