@@ -1,4 +1,3 @@
-// lib/screens/statistics_screen.dart
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -221,11 +220,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        padding: const EdgeInsets.only(right: 20),
-                        icon: Icon(Icons.arrow_back, color: scheme.primary),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -233,21 +227,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                "Here's your",
-                                style: GoogleFonts.montserratAlternates(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: scheme.onBackground,
-                                ),
-                              ),
-                              Text(
-                                "Progress",
-                                textAlign: TextAlign.start,
-                                style: GoogleFonts.montserratAlternates(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: scheme.primary,
+                              RichText(
+                                text: TextSpan(
+                                  style: GoogleFonts.montserratAlternates(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: "Here's your ",
+                                      style: TextStyle(color: scheme.onBackground),
+                                    ),
+                                    TextSpan(
+                                      text: "Progress",
+                                      style: TextStyle(color: scheme.primary),
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -262,30 +257,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                                   ),
                                 ),
                             ],
-                          ),
-
-                          // Avatar on the right
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: scheme.surfaceVariant,
-                              borderRadius: BorderRadius.circular(15),
-                              border: Border.all(color: scheme.outline),
-                              image: avatarImage != null
-                                  ? DecorationImage(
-                                      image: avatarImage,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : null,
-                            ),
-                            child: avatarImage == null
-                                ? Icon(
-                                    Icons.person,
-                                    color: scheme.onSurface.withOpacity(0.8),
-                                    size: 30,
-                                  )
-                                : null,
                           ),
                         ],
                       ),
@@ -555,8 +526,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                                                 show: true,
                                                 drawVerticalLine: false,
                                                 horizontalInterval: 1,
-                                                getDrawingHorizontalLine:
-                                                    (value) => FlLine(
+                                                getDrawingHorizontalLine: (value) => FlLine(
                                                   color: scheme.outline
                                                       .withOpacity(0.6),
                                                 ),
@@ -565,20 +535,21 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                                                 leftTitles: AxisTitles(
                                                   sideTitles: SideTitles(
                                                     showTitles: true,
-                                                    reservedSize: 32,
-                                                    getTitlesWidget:
-                                                        (value, meta) {
-                                                      return Text(
-                                                        value
-                                                            .toInt()
-                                                            .toString(),
-                                                        style:
-                                                            GoogleFonts.inter(
-                                                          fontSize: 10,
-                                                          color: scheme
-                                                              .onSurface
-                                                              .withOpacity(
-                                                                  0.7),
+                                                    reservedSize: 45,
+                                                    getTitlesWidget: (value, meta) {
+                                                      if (value == meta.max) {
+                                                        return const SizedBox.shrink();
+                                                      }
+                                                      return Padding(
+                                                        padding: const EdgeInsets.only(right: 12.0, top: 6.0), 
+                                                        child: Text(
+                                                          value % 1 == 0
+                                                            ? value.toInt().toString()
+                                                            : value.toStringAsFixed(1),
+                                                          style: GoogleFonts.inter(
+                                                            fontSize: 10,
+                                                            color: scheme.onSurface.withOpacity(0.7),
+                                                          ),
                                                         ),
                                                       );
                                                     },
@@ -586,34 +557,29 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                                                 ),
                                                 bottomTitles: AxisTitles(
                                                   sideTitles: SideTitles(
-                                                    showTitles: true,
-                                                    interval: 1,
-                                                    getTitlesWidget:
-                                                        (value, meta) {
-                                                      final idx =
-                                                          value.toInt();
-                                                      final labels = [
-                                                        '1–7',
-                                                        '8–14',
-                                                        '15–21',
-                                                        '22–End'
-                                                      ];
-                                                      if (idx >= 0 &&
-                                                          idx <
-                                                              labels.length) {
-                                                        return Text(
+                                                  showTitles: true,
+                                                  interval: 1,
+                                                  reservedSize: 28,
+                                                  getTitlesWidget: (value, meta) {
+                                                    final idx = value.toInt();
+                                                    final labels = ['w1', 'w2', 'w3', 'w4'];
+
+                                                    if (idx < 0 || idx >= 4) {
+                                                      return const SizedBox.shrink();
+                                                    }
+
+                                                      return SizedBox(
+                                                        width: 40, 
+                                                        child: Text(
                                                           labels[idx],
-                                                          style:
-                                                              GoogleFonts.inter(
+                                                          textAlign: TextAlign.center,
+                                                          overflow: TextOverflow.clip,
+                                                          style: GoogleFonts.inter(
                                                             fontSize: 10,
-                                                            color: scheme
-                                                                .onSurface
-                                                                .withOpacity(
-                                                                    0.7),
+                                                            color: scheme.onSurface.withOpacity(0.7),
                                                           ),
-                                                        );
-                                                      }
-                                                      return const Text('');
+                                                        ),
+                                                      );
                                                     },
                                                   ),
                                                 ),
