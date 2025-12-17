@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "861714301924-uv71jh1kpvlqqor57tiv5jmmj5vuf7qm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.study_mate",
+            "certificate_hash": "48c080a33aa1aafb6a64ec29c32522ab538929e0"
+          }
+        },
+        {
           "client_id": "861714301924-dtskhad6bom8gggbmkbmnvta6qvoor7d.apps.googleusercontent.com",
           "client_type": 3
         }
