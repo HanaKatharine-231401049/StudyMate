@@ -1,16 +1,5 @@
-# study_mate
+# StudyMate - Smart Study Planner
 
-A new Flutter project.
+StudyMate adalah aplikasi yang hadir sebagai solusi digital terpadu untuk menggantikan metode manual yang selama ini digunakan pelajar, seperti mencatat jadwal di buku atau berpindah-pindah antar berbagai aplikasi. Dengan StudyMate, seluruh kebutuhan belajar terintegrasi dalam satu platform yang praktis dan terstruktur. Pengguna dapat mengelola jadwal kuliah lengkap dengan pengingat otomatis, mencatat serta memantau tugas beserta tenggat waktunya, memanfaatkan timer belajar berbasis metode Pomodoro untuk meningkatkan fokus, menyimpan catatan ringkas per mata kuliah, hingga memantau progres belajar melalui visualisasi grafik statistik yang informatif.
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+# Deskripsi Proyek
